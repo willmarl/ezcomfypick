@@ -1,20 +1,10 @@
+import { X, Check } from 'lucide-react';
+
 interface ActionButtonsProps {
   onLeft: () => void;
   onRight: () => void;
   disabled: boolean;
 }
-
-const IconX = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <path d="M7 7l14 14M21 7L7 21" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-  </svg>
-);
-
-const IconCheck = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <path d="M5 15l6 6L23 8" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({ onLeft, onRight, disabled }) => (
   <div style={{
@@ -51,7 +41,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({ onLeft, onRight, d
         (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
       }}
     >
-      <IconX />
+      <X size={28} strokeWidth={2.8} />
     </button>
 
     <button
@@ -79,7 +69,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({ onLeft, onRight, d
         (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
       }}
     >
-      <IconCheck />
+      <Check size={28} strokeWidth={2.8} />
     </button>
   </div>
 );

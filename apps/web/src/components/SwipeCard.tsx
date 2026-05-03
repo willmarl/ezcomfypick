@@ -122,7 +122,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
             style={{
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
+              objectFit: 'contain',
               display: 'block',
             }}
           />

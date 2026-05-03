@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import type { Collection } from '../types';
 
 interface PillBarProps {
@@ -6,12 +7,6 @@ interface PillBarProps {
   onSelect: (folder: string) => void;
   onNew: () => void;
 }
-
-const IconPlus = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
 
 export const PillBar: React.FC<PillBarProps> = ({ collections, selected, onSelect, onNew }) => (
   <div style={{
@@ -50,7 +45,7 @@ export const PillBar: React.FC<PillBarProps> = ({ collections, selected, onSelec
           padding: 0,
         }}
       >
-        <IconPlus />
+        <Plus size={16} />
         <span>New</span>
       </button>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import type { AppSettings } from '../../types';
 
 interface SettingsSheetProps {
@@ -7,12 +8,6 @@ interface SettingsSheetProps {
   settings: AppSettings;
   onSave: (settings: AppSettings) => void;
 }
-
-const IconClose = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-);
 
 export const SettingsSheet: React.FC<SettingsSheetProps> = ({ visible, onClose, settings, onSave }) => {
   const [local, setLocal] = useState(settings);
@@ -76,7 +71,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({ visible, onClose, 
               justifyContent: 'center',
             }}
           >
-            <IconClose />
+            <X size={18} />
           </button>
         </div>
 

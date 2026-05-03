@@ -1,16 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { X } from 'lucide-react';
 
 interface NewCollectionSheetProps {
   visible: boolean;
   onClose: () => void;
   onCreate: (name: string, emoji: string) => void;
 }
-
-const IconClose = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-);
 
 const RECOMMENDED_EMOJIS = [
   '🎨', '🎭', '📷', '🖼️', '🌈', '✨',
@@ -98,7 +93,7 @@ export const NewCollectionSheet: React.FC<NewCollectionSheetProps> = ({ visible,
               justifyContent: 'center',
             }}
           >
-            <IconClose />
+            <X size={18} />
           </button>
         </div>
 

@@ -1,23 +1,11 @@
+import { RotateCcw, Settings } from 'lucide-react';
+
 interface HeaderProps {
   count: number;
   canUndo: boolean;
   onUndo: () => void;
   onSettings: () => void;
 }
-
-const IconUndo = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M3 9.5A6 6 0 1 0 4.5 5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    <path d="M3 3v3.5h3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const IconSettings = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <circle cx="9" cy="9" r="2.3" stroke="currentColor" strokeWidth="1.7" />
-    <path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2M3.55 3.55l1.41 1.41M13.04 13.04l1.41 1.41M3.55 14.45l1.41-1.41M13.04 4.96l1.41-1.41" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-  </svg>
-);
 
 export const Header: React.FC<HeaderProps> = ({ count, canUndo, onUndo, onSettings }) => (
   <div style={{
@@ -63,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({ count, canUndo, onUndo, onSettin
           transition: 'all 0.15s',
         }}
       >
-        <IconUndo />
+        <RotateCcw size={18} />
       </button>
       <button
         onClick={onSettings}
@@ -80,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ count, canUndo, onUndo, onSettin
           color: '#a0a0a0',
         }}
       >
-        <IconSettings />
+        <Settings size={18} />
       </button>
     </div>
   </div>
