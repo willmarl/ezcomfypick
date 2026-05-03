@@ -66,4 +66,28 @@ export const apiClient = {
       json: data,
     }).json();
   },
+
+  getTags: async (imagePath: string, apiUrl: string = ''): Promise<string[]> => {
+    const client = createClient(apiUrl);
+    const res = await client.get(`images/${imagePath}/tags`).json<{ tags: string[] }>();
+    return res.tags;
+  },
+
+  addTag: async (imagePath: string, tag: string, apiUrl: string = ''): Promise<{ ok: boolean }> => {
+    const client = createClient(apiUrl);
+    return client.post(`images/${imagePath}/tags`, {
+      json: { tag },
+    }).json();
+  },
+
+  removeTag: async (imagePath: string, tag: string, apiUrl: string = ''): Promise<{ ok: boolean }> => {
+    const client = createClient(apiUrl);
+    return client.delete(`images/${imagePath}/tags/${tag}`).json();
+  },
+
+  getAllTags: async (apiUrl: string = ''): Promise<string[]> => {
+    const client = createClient(apiUrl);
+    const res = await client.get('tags').json<{ tags: string[] }>();
+    return res.tags;
+  },
 };

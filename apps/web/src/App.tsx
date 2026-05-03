@@ -5,6 +5,7 @@ import { useCollections } from './hooks/useCollections';
 import type { AppSettings } from './types';
 import { CardStack } from './components/CardStack';
 import { ActionButtons } from './components/ActionButtons';
+import { TagBar } from './components/TagBar';
 import { PillBar } from './components/PillBar';
 import { Header } from './components/Header';
 import { EmptyState } from './components/EmptyState';
@@ -37,6 +38,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [backendReady, setBackendReady] = useState<boolean | null>(null);
   const [isMagnified, setIsMagnified] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const cardStackRef = useRef<any>(null);
 
   const imageQueue = useImageQueue();
@@ -70,6 +72,21 @@ export default function App() {
       setIsMagnified(false);
       if (settings.haptic && navigator.vibrate) {
         navigator.vibrate(dir === 'right' ? [20] : [10, 30, 10]);
+      }
+
+      // Append selected tags to image before swiping
+      if (selectedTags.size > 0) {
+        for (const tag of selectedTags) {
+          try {
+            await fetch(`/api/images/${imagePath}/tags`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tag }),
+            });
+          } catch (err) {
+            console.error(`Failed to add tag ${tag}:`, err);
+          }
+        }
       }
 
       if (dir === 'right') {
@@ -192,6 +209,16 @@ export default function App() {
         onSettings={() => setShowSettings(true)}
       />
 
+      {imageQueue.images.length > 0 && (
+        <ActionButtons
+          onLeft={() => handleButtonSwipe('left')}
+          onRight={() => handleButtonSwipe('right')}
+          disabled={false}
+          isMagnified={isMagnified}
+          onToggleMagnify={() => setIsMagnified(m => !m)}
+        />
+      )}
+
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {imageQueue.images.length === 0 ? (
           <EmptyState onReload={imageQueue.reload} />
@@ -201,12 +228,23 @@ export default function App() {
       </div>
 
       {imageQueue.images.length > 0 && (
-        <ActionButtons
-          onLeft={() => handleButtonSwipe('left')}
-          onRight={() => handleButtonSwipe('right')}
-          disabled={false}
-          isMagnified={isMagnified}
-          onToggleMagnify={() => setIsMagnified(m => !m)}
+        <TagBar
+          imagePath={imageQueue.images[0] ?? null}
+          selectedTags={selectedTags}
+          onToggleTag={(tag) => {
+            const newTags = new Set(selectedTags);
+            if (newTags.has(tag)) {
+              newTags.delete(tag);
+            } else {
+              newTags.add(tag);
+            }
+            setSelectedTags(newTags);
+          }}
+          onAddTag={(tag) => {
+            const newTags = new Set(selectedTags);
+            newTags.add(tag);
+            setSelectedTags(newTags);
+          }}
         />
       )}
 

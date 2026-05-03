@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 import shutil
+from sqlalchemy import select
 
 from collection_manager import (
     get_all_collections,
@@ -15,6 +16,7 @@ from collection_manager import (
     update_collection_metadata,
     Collection,
 )
+from database import init_db, get_session, ImageTag
 
 app = FastAPI()
 
@@ -43,6 +45,9 @@ def ensure_dirs():
     from collection_manager import read_all_metadata, write_all_metadata
     metadata = read_all_metadata(COLLECTIONS_DIR)
     write_all_metadata(COLLECTIONS_DIR, metadata)
+
+    # Initialize database
+    init_db(COLLECTIONS_DIR / "ezcomfypick.db")
 
 
 def validate_image_path(image_path: str) -> Path:
@@ -172,6 +177,10 @@ class UpdateCollectionRequest(BaseModel):
     description: Optional[str] = None
 
 
+class AddTagRequest(BaseModel):
+    tag: str
+
+
 @app.put("/api/collections/{folder}")
 def update_collection(folder: str, req: UpdateCollectionRequest):
     """Update a collection's metadata (name, emoji, description)."""
@@ -188,6 +197,81 @@ def update_collection(folder: str, req: UpdateCollectionRequest):
         return collection
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/images/{path:path}/tags")
+def get_image_tags(path: str, session = Depends(get_session)):
+    """Get all tags for an image."""
+    try:
+        validate_image_path(path)
+        stmt = select(ImageTag.tag).where(ImageTag.image_path == path)
+        tags = [row[0] for row in session.exec(stmt).all()]
+        return {"tags": tags}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/images/{path:path}/tags")
+def add_image_tag(path: str, req: AddTagRequest, session = Depends(get_session)):
+    """Add a tag to an image."""
+    try:
+        validate_image_path(path)
+        tag = req.tag.strip()
+        if not tag:
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        existing = session.exec(
+            select(ImageTag).where(
+                (ImageTag.image_path == path) & (ImageTag.tag == tag)
+            )
+        ).first()
+        if existing:
+            return {"ok": True}
+
+        new_tag = ImageTag(image_path=path, tag=tag)
+        session.add(new_tag)
+        session.commit()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/images/{path:path}/tags/{tag}")
+def remove_image_tag(path: str, tag: str, session = Depends(get_session)):
+    """Remove a tag from an image."""
+    try:
+        validate_image_path(path)
+        tag = tag.strip()
+        if not tag:
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        stmt = select(ImageTag).where(
+            (ImageTag.image_path == path) & (ImageTag.tag == tag)
+        )
+        image_tag = session.exec(stmt).first()
+        if image_tag:
+            session.delete(image_tag)
+            session.commit()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/tags")
+def get_all_tags(session = Depends(get_session)):
+    """Get all unique tags."""
+    try:
+        stmt = select(ImageTag.tag).distinct()
+        tags = [row[0] for row in session.exec(stmt).all()]
+        return {"tags": sorted(tags)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

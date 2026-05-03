@@ -34,15 +34,17 @@ export const PillBar: React.FC<PillBarProps> = ({ collections, selected, onSelec
           display: 'flex',
           alignItems: 'center',
           gap: 5,
-          background: 'none',
+          background: 'oklch(65% 0.18 145)',
           border: 'none',
-          color: '#4a4a4a',
+          color: '#0a0a0a',
           cursor: 'pointer',
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          padding: 0,
+          padding: '6px 12px',
+          borderRadius: '6px',
+          transition: 'all 0.2s',
         }}
       >
         <Plus size={16} />
