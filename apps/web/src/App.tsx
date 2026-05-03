@@ -1,121 +1,161 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useState, useRef, useEffect } from 'react';
+import { Toaster, toast } from 'sonner';
+import { useImageQueue } from './hooks/useImageQueue';
+import { useCollections } from './hooks/useCollections';
+import type { AppSettings } from './types';
+import { CardStack } from './components/CardStack';
+import { ActionButtons } from './components/ActionButtons';
+import { PillBar } from './components/PillBar';
+import { Header } from './components/Header';
+import { EmptyState } from './components/EmptyState';
+import { NewCollectionSheet } from './components/sheets/NewCollectionSheet';
+import { SettingsSheet } from './components/sheets/SettingsSheet';
 
-function App() {
-  const [count, setCount] = useState(0)
+const SETTINGS_STORAGE_KEY = 'ezcomfypick_settings';
+
+const getStoredSettings = (): AppSettings => {
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : { apiUrl: '', haptic: true };
+  } catch {
+    return { apiUrl: '', haptic: true };
+  }
+};
+
+const saveSettings = (settings: AppSettings) => {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    console.warn('Failed to save settings');
+  }
+};
+
+export default function App() {
+  const [settings, setSettings] = useState<AppSettings>(getStoredSettings);
+  const [selectedCollection, setSelectedCollection] = useState<string>('');
+  const [showNewCollection, setShowNewCollection] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const cardStackRef = useRef<any>(null);
+
+  const imageQueue = useImageQueue(settings.apiUrl);
+  const collections = useCollections(settings.apiUrl);
+
+  // Auto-select first collection
+  useEffect(() => {
+    if (collections.collections.length > 0 && !selectedCollection) {
+      setSelectedCollection(collections.collections[0].name);
+    }
+  }, [collections.collections, selectedCollection]);
+
+  const handleSwipe = async (dir: 'left' | 'right', imagePath: string) => {
+    try {
+      if (settings.haptic && navigator.vibrate) {
+        navigator.vibrate(dir === 'right' ? [20] : [10, 30, 10]);
+      }
+
+      if (dir === 'right') {
+        await imageQueue.swipeKeep(imagePath, selectedCollection);
+        const col = collections.collections.find((c) => c.name === selectedCollection);
+        toast.success(`Kept → ${col?.name || selectedCollection}`);
+      } else {
+        await imageQueue.swipeTrash(imagePath);
+        toast.success('Moved to trash');
+      }
+    } catch (err) {
+      console.error('Swipe failed:', err);
+      toast.error('Failed to process swipe');
+    }
+  };
+
+  const handleUndo = async () => {
+    try {
+      await imageQueue.undo();
+      toast.success('Undone ↩');
+    } catch (err) {
+      console.error('Undo failed:', err);
+      toast.error('Failed to undo');
+    }
+  };
+
+  const handleSaveSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    saveSettings(newSettings);
+    toast.success('Settings saved');
+  };
+
+  const handleCreateCollection = async (name: string) => {
+    try {
+      await collections.createCollection(name);
+      setSelectedCollection(name);
+      setShowNewCollection(false);
+      toast.success(`Collection "${name}" created`);
+    } catch (err) {
+      console.error('Failed to create collection:', err);
+      toast.error('Failed to create collection');
+    }
+  };
+
+  const handleButtonSwipe = (dir: 'left' | 'right') => {
+    if (imageQueue.images.length === 0) return;
+    cardStackRef.current?.flyOut(dir);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#090909',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <Header
+        count={imageQueue.images.length}
+        canUndo={imageQueue.canUndo}
+        onUndo={handleUndo}
+        onSettings={() => setShowSettings(true)}
+      />
 
-      <div className="ticks"></div>
+      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        {imageQueue.images.length === 0 ? (
+          <EmptyState onReload={imageQueue.reload} />
+        ) : (
+          <CardStack ref={cardStackRef} images={imageQueue.images} onSwipe={handleSwipe} />
+        )}
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      {imageQueue.images.length > 0 && (
+        <ActionButtons
+          onLeft={() => handleButtonSwipe('left')}
+          onRight={() => handleButtonSwipe('right')}
+          disabled={false}
+        />
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <PillBar
+        collections={collections.collections}
+        selected={selectedCollection}
+        onSelect={setSelectedCollection}
+        onNew={() => setShowNewCollection(true)}
+      />
+
+      <NewCollectionSheet
+        visible={showNewCollection}
+        onClose={() => setShowNewCollection(false)}
+        onCreate={handleCreateCollection}
+      />
+
+      <SettingsSheet
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
+      />
+
+      <Toaster position="bottom-center" />
+    </div>
+  );
 }
-
-export default App
