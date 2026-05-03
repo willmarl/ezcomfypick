@@ -47,16 +47,23 @@ export const apiClient = {
     }).json();
   },
 
-  getCollections: async (apiUrl: string = ''): Promise<string[]> => {
+  getCollections: async (apiUrl: string = ''): Promise<any[]> => {
     const client = createClient(apiUrl);
-    const res = await client.get('collections').json<{ collections: string[] }>();
+    const res = await client.get('collections').json<{ collections: any[] }>();
     return res.collections;
   },
 
-  createCollection: async (name: string, apiUrl: string = ''): Promise<{ ok: boolean }> => {
+  createCollection: async (name: string, apiUrl: string = ''): Promise<any> => {
     const client = createClient(apiUrl);
     return client.post('collections', {
       json: { name },
+    }).json();
+  },
+
+  updateCollection: async (folder: string, data: { name?: string; emoji?: string; description?: string }, apiUrl: string = ''): Promise<any> => {
+    const client = createClient(apiUrl);
+    return client.put(`collections/${folder}`, {
+      json: data,
     }).json();
   },
 };

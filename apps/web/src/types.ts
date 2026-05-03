@@ -1,6 +1,9 @@
 export interface Collection {
+  folder: string;
   name: string;
-  icon: string;
+  emoji?: string;
+  description?: string;
+  image_count: number;
 }
 
 export interface UndoDescriptor {

@@ -3,7 +3,7 @@ import type { Collection } from '../types';
 interface PillBarProps {
   collections: Collection[];
   selected: string;
-  onSelect: (name: string) => void;
+  onSelect: (folder: string) => void;
   onNew: () => void;
 }
 
@@ -66,11 +66,11 @@ export const PillBar: React.FC<PillBarProps> = ({ collections, selected, onSelec
       touchAction: 'pan-x',
     }}>
       {collections.map((col) => {
-        const isActive = col.name === selected;
+        const isActive = col.folder === selected;
         return (
           <button
-            key={col.name}
-            onClick={() => onSelect(col.name)}
+            key={col.folder}
+            onClick={() => onSelect(col.folder)}
             style={{
               flexShrink: 0,
               display: 'flex',
@@ -89,7 +89,7 @@ export const PillBar: React.FC<PillBarProps> = ({ collections, selected, onSelec
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>{col.icon}</span>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>{col.emoji || '📁'}</span>
             <span>{col.name}</span>
           </button>
         );

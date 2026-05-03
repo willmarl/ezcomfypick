@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Optional
 import shutil
 
+from collection_manager import (
+    get_all_collections,
+    get_collection,
+    update_collection_metadata,
+    Collection,
+)
+
 app = FastAPI()
 
 IMAGE_DIR = Path(os.environ.get("IMAGE_DIR", "/home/cat/Pictures/test/"))
@@ -22,6 +29,11 @@ def ensure_dirs():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     COLLECTIONS_DIR.mkdir(parents=True, exist_ok=True)
     TRASH_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Ensure metadata file exists
+    from collection_manager import read_all_metadata, write_all_metadata
+    metadata = read_all_metadata(COLLECTIONS_DIR)
+    write_all_metadata(COLLECTIONS_DIR, metadata)
 
 
 def validate_image_path(image_path: str) -> Path:
@@ -111,15 +123,10 @@ def get_image_file(path: str):
 
 @app.get("/api/collections")
 def list_collections():
-    """List all collection folder names."""
+    """List all collections with metadata."""
     try:
-        if not COLLECTIONS_DIR.exists():
-            return {"collections": []}
-
-        collections = [
-            d.name for d in COLLECTIONS_DIR.iterdir() if d.is_dir()
-        ]
-        return {"collections": sorted(collections)}
+        collections = get_all_collections(COLLECTIONS_DIR)
+        return {"collections": collections}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -130,7 +137,48 @@ def create_collection(req: CollectionCreateRequest):
     try:
         collection_path = COLLECTIONS_DIR / req.name
         collection_path.mkdir(parents=True, exist_ok=True)
-        return {"ok": True}
+        collection = get_collection(COLLECTIONS_DIR, req.name)
+        return {"ok": True, "collection": collection}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/collections/{folder}")
+def get_collection_detail(folder: str):
+    """Get a specific collection with metadata."""
+    try:
+        collection = get_collection(COLLECTIONS_DIR, folder)
+        if not collection:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        return collection
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class UpdateCollectionRequest(BaseModel):
+    name: Optional[str] = None
+    emoji: Optional[str] = None
+    description: Optional[str] = None
+
+
+@app.put("/api/collections/{folder}")
+def update_collection(folder: str, req: UpdateCollectionRequest):
+    """Update a collection's metadata (name, emoji, description)."""
+    try:
+        collection = update_collection_metadata(
+            COLLECTIONS_DIR,
+            folder,
+            name=req.name,
+            emoji=req.emoji,
+            description=req.description,
+        )
+        if not collection:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        return collection
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

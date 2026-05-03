@@ -43,7 +43,7 @@ export default function App() {
   // Auto-select first collection
   useEffect(() => {
     if (collections.collections.length > 0 && !selectedCollection) {
-      setSelectedCollection(collections.collections[0].name);
+      setSelectedCollection(collections.collections[0].folder);
     }
   }, [collections.collections, selectedCollection]);
 
@@ -55,7 +55,7 @@ export default function App() {
 
       if (dir === 'right') {
         await imageQueue.swipeKeep(imagePath, selectedCollection);
-        const col = collections.collections.find((c) => c.name === selectedCollection);
+        const col = collections.collections.find((c) => c.folder === selectedCollection);
         toast.success(`Kept → ${col?.name || selectedCollection}`);
       } else {
         await imageQueue.swipeTrash(imagePath);
@@ -83,10 +83,14 @@ export default function App() {
     toast.success('Settings saved');
   };
 
-  const handleCreateCollection = async (name: string) => {
+  const handleCreateCollection = async (name: string, emoji: string) => {
     try {
-      await collections.createCollection(name);
-      setSelectedCollection(name);
+      const collection = await collections.createCollection(name);
+      // If emoji is not default, update the collection with it
+      if (emoji !== '📁') {
+        await collections.updateCollection(collection.folder, { emoji });
+      }
+      setSelectedCollection(collection.folder);
       setShowNewCollection(false);
       toast.success(`Collection "${name}" created`);
     } catch (err) {
@@ -155,7 +159,7 @@ export default function App() {
         onSave={handleSaveSettings}
       />
 
-      <Toaster position="bottom-center" />
+      <Toaster position="top-left" />
     </div>
   );
 }
