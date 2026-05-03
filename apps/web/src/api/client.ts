@@ -90,4 +90,26 @@ export const apiClient = {
     const res = await client.get('tags').json<{ tags: string[] }>();
     return res.tags;
   },
+
+  getGalleryImages: async (
+    collection: string | undefined,
+    tags: string[] | undefined,
+    offset: number = 0,
+    limit: number = 30,
+    apiUrl: string = ''
+  ): Promise<{ images: string[]; has_more: boolean }> => {
+    const client = createClient(apiUrl);
+    const params = new URLSearchParams();
+    if (collection) params.append('collection', collection);
+    if (tags && tags.length > 0) params.append('tags', tags.join(','));
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    return client.get(`gallery/images?${params.toString()}`).json();
+  },
+
+  getGalleryImageUrl: (path: string): string => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const prefix = baseUrl ? `${baseUrl}/api` : '/api';
+    return `${prefix}/gallery/image/${path}`;
+  },
 };

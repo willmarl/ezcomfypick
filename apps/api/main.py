@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 import shutil
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from collection_manager import (
     get_all_collections,
@@ -276,8 +276,75 @@ def get_all_tags(session = Depends(get_session)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/gallery/images")
+def get_gallery_images(
+    collection: Optional[str] = None,
+    tags: Optional[str] = None,
+    offset: int = 0,
+    limit: int = 30,
+    session = Depends(get_session),
+):
+    """Get images from collections, optionally filtered by collection and/or tags."""
+    try:
+        images = []
+
+        # Determine which collections to walk
+        if collection:
+            collections_to_walk = [COLLECTIONS_DIR / collection]
+        else:
+            collections_to_walk = [d for d in COLLECTIONS_DIR.iterdir() if d.is_dir()]
+
+        # Walk collections and gather image paths
+        for col_path in collections_to_walk:
+            if not col_path.exists():
+                continue
+            col_name = col_path.name
+            for file in sorted(col_path.iterdir()):
+                if file.suffix.lower() in IMAGE_EXTENSIONS:
+                    rel_path = f"{col_name}/{file.name}"
+                    images.append(rel_path)
+
+        # Filter by tags if provided
+        if tags:
+            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+            if tag_list:
+                filtered = []
+                for img_path in images:
+                    stmt = select(ImageTag.tag).where(ImageTag.image_path == img_path)
+                    img_tags = {row[0] for row in session.exec(stmt).all()}
+                    # Include image only if it has ALL the requested tags
+                    if all(tag in img_tags for tag in tag_list):
+                        filtered.append(img_path)
+                images = filtered
+
+        # Paginate
+        has_more = len(images) > offset + limit
+        paginated = images[offset : offset + limit]
+
+        return {"images": paginated, "has_more": has_more}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/gallery/image/{path:path}")
+def get_gallery_image_file(path: str):
+    """Serve image files from collections directory."""
+    try:
+        # Validate path is within COLLECTIONS_DIR
+        file_path = (COLLECTIONS_DIR / path).resolve()
+        if not str(file_path).startswith(str(COLLECTIONS_DIR.resolve())):
+            raise HTTPException(status_code=400, detail="Invalid path")
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return FileResponse(file_path, media_type="image/*")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/swipe/keep")
-def swipe_keep(req: SwipeKeepRequest):
+def swipe_keep(req: SwipeKeepRequest, session = Depends(get_session)):
     """Move image from output to a collection."""
     try:
         source_path = validate_image_path(req.image_path)
@@ -300,6 +367,15 @@ def swipe_keep(req: SwipeKeepRequest):
 
         # Move the file
         shutil.move(str(source_path), str(dest_path))
+
+        # Re-key any existing tags from OUTPUT_DIR path to gallery path
+        new_image_path = f"{req.collection}/{dest_path.name}"
+        session.exec(
+            update(ImageTag)
+            .where(ImageTag.image_path == req.image_path)
+            .values(image_path=new_image_path)
+        )
+        session.commit()
 
         undo_descriptor = {
             "image_path": req.image_path,
