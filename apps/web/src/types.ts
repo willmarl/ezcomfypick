@@ -13,6 +13,6 @@ export interface UndoDescriptor {
 }
 
 export interface AppSettings {
-  apiUrl: string;
+  // apiUrl: string; // vestigial — kept for future Docker networking flexibility
   haptic: boolean;
 }

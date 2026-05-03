@@ -16,9 +16,9 @@ const SETTINGS_STORAGE_KEY = 'ezcomfypick_settings';
 const getStoredSettings = (): AppSettings => {
   try {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : { apiUrl: '', haptic: true };
+    return stored ? JSON.parse(stored) : { haptic: true };
   } catch {
-    return { apiUrl: '', haptic: true };
+    return { haptic: true };
   }
 };
 
@@ -38,15 +38,14 @@ export default function App() {
   const [backendReady, setBackendReady] = useState<boolean | null>(null);
   const cardStackRef = useRef<any>(null);
 
-  const imageQueue = useImageQueue(settings.apiUrl);
-  const collections = useCollections(settings.apiUrl);
+  const imageQueue = useImageQueue();
+  const collections = useCollections();
 
-  // Check backend connectivity on mount and when apiUrl changes
+  // Check backend connectivity on mount
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const baseUrl = settings.apiUrl || window.location.origin;
-        const response = await fetch(`${baseUrl}/api/hello`, { method: 'GET' });
+        const response = await fetch('/api/hello', { method: 'GET' });
         setBackendReady(response.ok);
       } catch {
         setBackendReady(false);
@@ -56,7 +55,7 @@ export default function App() {
     checkBackend();
     const interval = setInterval(checkBackend, 3000);
     return () => clearInterval(interval);
-  }, [settings.apiUrl]);
+  }, []);
 
   // Auto-select first collection
   useEffect(() => {

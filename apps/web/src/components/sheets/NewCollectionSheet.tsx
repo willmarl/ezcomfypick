@@ -25,7 +25,6 @@ export const NewCollectionSheet: React.FC<NewCollectionSheetProps> = ({ visible,
   const [name, setName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('📁');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [customEmoji, setCustomEmoji] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,7 +35,6 @@ export const NewCollectionSheet: React.FC<NewCollectionSheetProps> = ({ visible,
       setName('');
       setSelectedEmoji('📁');
       setShowEmojiPicker(false);
-      setCustomEmoji('');
     }
   }, [visible]);
 

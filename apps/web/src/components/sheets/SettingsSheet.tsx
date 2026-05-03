@@ -81,7 +81,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({ visible, onClose, 
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
+          {/* <div>
             <label style={{ fontSize: 12, color: '#6b6b6b', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>API Base URL</label>
             <input
               value={local.apiUrl}
@@ -102,7 +102,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({ visible, onClose, 
             <div style={{ fontSize: 11, color: '#3a3a3a', marginTop: 6 }}>Leave empty to use current host</div>
           </div>
 
-          <div style={{ height: 1, background: '#1e1e1e' }} />
+          <div style={{ height: 1, background: '#1e1e1e' }} /> */}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
