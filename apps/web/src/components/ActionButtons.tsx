@@ -1,21 +1,50 @@
-import { X, Check } from 'lucide-react';
+import { X, Check, ZoomIn } from 'lucide-react';
 
 interface ActionButtonsProps {
   onLeft: () => void;
   onRight: () => void;
   disabled: boolean;
+  isMagnified: boolean;
+  onToggleMagnify: () => void;
 }
 
-export const ActionButtons: React.FC<ActionButtonsProps> = ({ onLeft, onRight, disabled }) => (
+export const ActionButtons: React.FC<ActionButtonsProps> = ({ onLeft, onRight, disabled, isMagnified, onToggleMagnify }) => (
   <div style={{
     display: 'flex',
-    justifyContent: 'center',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: '24px',
-    padding: '16px 20px 12px',
+    gap: 8,
+    padding: '12px 20px',
     flexShrink: 0,
     zIndex: 20,
   }}>
+    {/* Magnify toggle button */}
+    <button
+      onClick={onToggleMagnify}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: '50%',
+        background: isMagnified ? 'oklch(75% 0.15 260 / 0.15)' : '#141414',
+        border: `1.5px solid ${isMagnified ? 'oklch(75% 0.15 260)' : '#2a2a2a'}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        color: isMagnified ? 'oklch(75% 0.15 260)' : '#6b6b6b',
+        transition: 'all 0.2s',
+      }}
+    >
+      <ZoomIn size={20} />
+    </button>
+
+    {/* X and Check buttons row */}
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '24px',
+    }}>
     <button
       onClick={onLeft}
       disabled={disabled}
@@ -71,5 +100,6 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({ onLeft, onRight, d
     >
       <Check size={28} strokeWidth={2.8} />
     </button>
+    </div>
   </div>
 );

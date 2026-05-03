@@ -36,6 +36,7 @@ export default function App() {
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [backendReady, setBackendReady] = useState<boolean | null>(null);
+  const [isMagnified, setIsMagnified] = useState(false);
   const cardStackRef = useRef<any>(null);
 
   const imageQueue = useImageQueue();
@@ -66,6 +67,7 @@ export default function App() {
 
   const handleSwipe = async (dir: 'left' | 'right', imagePath: string) => {
     try {
+      setIsMagnified(false);
       if (settings.haptic && navigator.vibrate) {
         navigator.vibrate(dir === 'right' ? [20] : [10, 30, 10]);
       }
@@ -194,7 +196,7 @@ export default function App() {
         {imageQueue.images.length === 0 ? (
           <EmptyState onReload={imageQueue.reload} />
         ) : (
-          <CardStack ref={cardStackRef} images={imageQueue.images} onSwipe={handleSwipe} />
+          <CardStack ref={cardStackRef} images={imageQueue.images} onSwipe={handleSwipe} isMagnified={isMagnified} />
         )}
       </div>
 
@@ -203,6 +205,8 @@ export default function App() {
           onLeft={() => handleButtonSwipe('left')}
           onRight={() => handleButtonSwipe('right')}
           disabled={false}
+          isMagnified={isMagnified}
+          onToggleMagnify={() => setIsMagnified(m => !m)}
         />
       )}
 

@@ -4,6 +4,7 @@ import { SwipeCard } from './SwipeCard';
 interface CardStackProps {
   images: string[];
   onSwipe: (dir: 'left' | 'right', path: string) => void;
+  isMagnified: boolean;
 }
 
 interface CardStackHandle {
@@ -11,7 +12,7 @@ interface CardStackHandle {
 }
 
 export const CardStack = forwardRef<CardStackHandle, CardStackProps>(
-  ({ images, onSwipe }, ref) => {
+  ({ images, onSwipe, isMagnified }, ref) => {
     const topCardRef = useRef<any>(null);
 
     useImperativeHandle(ref, () => ({
@@ -30,6 +31,7 @@ export const CardStack = forwardRef<CardStackHandle, CardStackProps>(
             isTop={i === 0}
             stackIndex={i}
             onSwipe={onSwipe}
+            isMagnified={i === 0 ? isMagnified : false}
           />
         ))}
       </div>

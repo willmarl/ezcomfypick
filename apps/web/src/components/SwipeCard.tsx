@@ -1,4 +1,5 @@
 import { forwardRef, useRef, useState, useCallback } from 'react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { apiClient } from '../api/client';
 
 interface SwipeCardProps {
@@ -6,6 +7,7 @@ interface SwipeCardProps {
   isTop: boolean;
   stackIndex: number;
   onSwipe: (dir: 'left' | 'right', path: string) => void;
+  isMagnified: boolean;
 }
 
 interface SwipeCardHandle {
@@ -16,7 +18,7 @@ const THRESHOLD = 100;
 const ROT_FACTOR = 0.08;
 
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
-  ({ imagePath, isTop, stackIndex, onSwipe }) => {
+  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const startRef = useRef<{ x: number; y: number } | null>(null);
     const dragRef = useRef({ x: 0, y: 0, active: false });
@@ -30,7 +32,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
     });
 
     const onPointerDown = useCallback((e: React.PointerEvent) => {
-      if (!isTop) return;
+      if (!isTop || isMagnified) return;
       e.preventDefault();
       const p = getPointer(e);
       startRef.current = p;
@@ -66,7 +68,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
 
       document.addEventListener('pointermove', handleMove);
       document.addEventListener('pointerup', handleUp);
-    }, [isTop]);
+    }, [isTop, isMagnified]);
 
     const flyOut = useCallback((dir: 'left' | 'right') => {
       setReleasing(true);
@@ -116,16 +118,42 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
             position: 'relative',
           }}
         >
-          <img
-            src={apiClient.getImageUrl(imagePath)}
-            alt={imagePath}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              display: 'block',
-            }}
-          />
+          {isMagnified ? (
+            <TransformWrapper
+              initialScale={1}
+              minScale={1}
+              maxScale={6}
+              doubleClick={{ mode: 'zoomIn' }}
+              centerOnInit
+            >
+              <TransformComponent
+                wrapperStyle={{ width: '100%', height: '100%' }}
+                contentStyle={{ width: '100%', height: '100%' }}
+              >
+                <img
+                  src={apiClient.getImageUrl(imagePath)}
+                  alt={imagePath}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                />
+              </TransformComponent>
+            </TransformWrapper>
+          ) : (
+            <img
+              src={apiClient.getImageUrl(imagePath)}
+              alt={imagePath}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          )}
 
           {/* KEEP overlay */}
           <div
