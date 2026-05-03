@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import type { Swiper as SwiperType } from 'swiper';
+import { Virtual } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/virtual';
+import '../styles/gallery-swiper.css';
 import { apiClient } from '../api/client';
 import { useCollections } from '../hooks/useCollections';
 import { Header } from '../components/Header';
@@ -13,9 +19,19 @@ export const GalleryPage: React.FC = () => {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const downSwipeRef = useRef({ y: 0, x: 0 });
+  const swiperRef = useRef<SwiperType | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const collections = useCollections();
+
+  // Sync activeIndex when dialog opens
+  useEffect(() => {
+    if (previewIndex !== null) {
+      setActiveIndex(previewIndex);
+    }
+  }, [previewIndex]);
 
   // Fetch all tags on mount
   useEffect(() => {
@@ -61,6 +77,7 @@ export const GalleryPage: React.FC = () => {
   useEffect(() => {
     setOffset(0);
     setImages([]);
+    setPreviewIndex(null);
     fetchGalleryImages(0);
   }, [selectedCollection, selectedTags, fetchGalleryImages]);
 
@@ -77,6 +94,13 @@ export const GalleryPage: React.FC = () => {
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
   }, [offset, hasMore, loading, fetchGalleryImages]);
+
+  // Load more when near end of gallery in preview
+  useEffect(() => {
+    if (previewIndex !== null && previewIndex >= images.length - 3 && hasMore && !loading) {
+      fetchGalleryImages(offset);
+    }
+  }, [previewIndex, images.length, hasMore, loading, offset, fetchGalleryImages]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -215,10 +239,10 @@ export const GalleryPage: React.FC = () => {
             gap: '2px',
           }}
         >
-          {images.map((imagePath) => (
+          {images.map((imagePath, idx) => (
             <button
               key={imagePath}
-              onClick={() => setPreviewImage(imagePath)}
+              onClick={() => setPreviewIndex(idx)}
               style={{
                 aspectRatio: '1 / 1',
                 background: '#141414',
@@ -250,51 +274,129 @@ export const GalleryPage: React.FC = () => {
         )}
       </div>
 
-      {/* Image preview dialog */}
-      <Dialog.Root open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+      {/* Image preview dialog with Swiper */}
+      <Dialog.Root open={previewIndex !== null} onOpenChange={(open) => !open && setPreviewIndex(null)}>
         <Dialog.Portal>
           <Dialog.Overlay
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0,0,0,0.8)',
+              background: 'rgba(0, 0, 0, 0.7)',
               zIndex: 50,
             }}
           />
           <Dialog.Content
             style={{
               position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              background: '#141414',
-              borderRadius: '16px',
-              padding: '20px',
+              inset: 0,
+              background: 'transparent',
               zIndex: 50,
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '16px',
+              padding: 0,
+              border: 'none',
             }}
           >
-            {previewImage && (
-              <>
-                <img
-                  src={apiClient.getGalleryImageUrl(previewImage)}
-                  alt={previewImage}
-                  style={{
-                    maxWidth: '80vw',
-                    maxHeight: '70vh',
-                    objectFit: 'contain',
-                  }}
-                />
-                <div style={{ fontSize: '12px', color: '#6b6b6b', textAlign: 'center' }}>
-                  {previewImage.split('/').pop()}
-                </div>
-              </>
-            )}
+            {/* Down-swipe to close wrapper */}
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onPointerDown={(e) => {
+                downSwipeRef.current = { y: e.clientY, x: e.clientX };
+              }}
+              onPointerUp={(e) => {
+                const dy = e.clientY - downSwipeRef.current.y;
+                const dx = e.clientX - downSwipeRef.current.x;
+                if (dy > 80 && Math.abs(dy) > Math.abs(dx)) {
+                  setPreviewIndex(null);
+                }
+              }}
+            >
+              <Swiper
+                key="swiper-viewer"
+                modules={[Virtual]}
+                virtual
+                slidesPerView={1}
+                spaceBetween={0}
+                initialSlide={previewIndex ?? 0}
+                onSwiper={(swiper) => {
+                  swiperRef.current = swiper;
+                }}
+                onSlideChange={(swiper) => {
+                  setActiveIndex(swiper.activeIndex);
+                }}
+                style={{ width: '100%', height: '100%' }}
+              >
+                {images.map((imagePath, idx) => (
+                  <SwiperSlide key={imagePath} virtualIndex={idx}>
+                    <img
+                      src={apiClient.getGalleryImageUrl(imagePath)}
+                      alt={imagePath}
+                      draggable={false}
+                    />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+
+            {/* Thumbnail strip */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '50px',
+                left: 0,
+                right: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '0 16px',
+                pointerEvents: 'auto',
+                zIndex: 100,
+              }}
+            >
+              {[-3, -2, -1, 0, 1, 2, 3].map((offset) => {
+                const idx = activeIndex + offset;
+                if (idx < 0 || idx >= images.length) {
+                  return (
+                    <div
+                      key={`empty-${offset}`}
+                      style={{
+                        width: offset === 0 ? 52 : 40,
+                        height: offset === 0 ? 52 : 40,
+                        flexShrink: 0,
+                      }}
+                    />
+                  );
+                }
+                const isCurrent = offset === 0;
+                const imagePath = images[idx];
+                return (
+                  <img
+                    key={`thumb-${idx}-${imagePath}`}
+                    src={apiClient.getGalleryImageUrl(imagePath)}
+                    alt={imagePath}
+                    onClick={() => swiperRef.current?.slideTo(idx)}
+                    style={{
+                      width: isCurrent ? 52 : 40,
+                      height: isCurrent ? 52 : 40,
+                      objectFit: 'cover',
+                      borderRadius: '6px',
+                      border: isCurrent ? '2px solid rgba(255,255,255,0.9)' : '2px solid rgba(255,255,255,0.2)',
+                      opacity: isCurrent ? 1 : 0.6,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      flexShrink: 0,
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Close button */}
             <Dialog.Close asChild>
               <button
                 style={{
@@ -303,17 +405,36 @@ export const GalleryPage: React.FC = () => {
                   right: '16px',
                   background: 'none',
                   border: 'none',
-                  color: '#6b6b6b',
+                  color: 'rgba(255,255,255,0.6)',
                   cursor: 'pointer',
                   padding: '0',
                   display: 'flex',
                   alignItems: 'center',
                   lineHeight: 1,
+                  zIndex: 100,
                 }}
               >
                 <X size={24} />
               </button>
             </Dialog.Close>
+
+            {/* Filename */}
+            {previewIndex !== null && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  left: '0',
+                  right: '0',
+                  textAlign: 'center',
+                  color: 'rgba(255,255,255,0.4)',
+                  fontSize: '12px',
+                  pointerEvents: 'none',
+                }}
+              >
+                {images[activeIndex]?.split('/').pop()}
+              </div>
+            )}
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
