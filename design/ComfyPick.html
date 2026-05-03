@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ComfyPick</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root {
+    width: 100%; height: 100%;
+    background: #090909;
+    color: #f0ede8;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    touch-action: none;
+  }
+  :root {
+    --green: oklch(65% 0.18 145);
+    --red: oklch(62% 0.2 25);
+    --amber: oklch(75% 0.17 75);
+    --bg: #090909;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #f0ede8;
+    --text-muted: #6b6b6b;
+    --text-dim: #3a3a3a;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Mock data ─────────────────────────────────────────────────────────────
+const MOCK_COLLECTIONS = [
+  { id: "all",      label: "All outputs",   icon: "⊞", color: "#6b6b6b" },
+  { id: "default",  label: "Default",       icon: "📁", color: "#6b6b6b" },
+  { id: "cartoon",  label: "Cartoony",      icon: "🎨", color: "oklch(65% 0.18 280)" },
+  { id: "realism",  label: "Realistic",     icon: "📷", color: "oklch(65% 0.14 220)" },
+  { id: "pixel",    label: "Pixel Art",     icon: "🕹️", color: "oklch(65% 0.18 145)" },
+  { id: "concept",  label: "Concept",       icon: "✏️", color: "oklch(65% 0.17 60)" },
+];
+
+const PLACEHOLDER_COLORS = [
+  "#1a1a2e","#16213e","#0f3460","#1b1b2f","#2d132c","#1f1f1f",
+  "#0d2137","#1a2a1a","#2a1a0e","#1e1230"
+];
+
+const MOCK_IMAGES = Array.from({ length: 18 }, (_, i) => ({
+  id: `img_${i}`,
+  filename: `ComfyUI_${String(8400 + i).padStart(5, "0")}_${["euler","dpm","ddim"][i%3]}.png`,
+  placeholder_color: PLACEHOLDER_COLORS[i % PLACEHOLDER_COLORS.length],
+  label: ["portrait study","landscape render","character concept","abstract flow","texture detail","sci-fi scene","anime style","product viz","nature study","architecture"][i % 10],
+}));
+
+// ─── Icons (inline SVG) ────────────────────────────────────────────────────
+// Clean hand-crafted icons (no icon library)
+const IconUndo = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M3 9.5A6 6 0 1 0 4.5 5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+    <path d="M3 3v3.5h3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const IconSettings = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <circle cx="9" cy="9" r="2.3" stroke="currentColor" strokeWidth="1.7"/>
+    <path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2M3.55 3.55l1.41 1.41M13.04 13.04l1.41 1.41M3.55 14.45l1.41-1.41M13.04 4.96l1.41-1.41" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+  </svg>
+);
+const IconPlus = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+const IconCheck = () => (
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <path d="M5 15l6 6L23 8" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const IconX = () => (
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <path d="M7 7l14 14M21 7L7 21" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"/>
+  </svg>
+);
+const IconClose = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+const IconChevron = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// ─── Image Card Placeholder ────────────────────────────────────────────────
+function ImagePlaceholder({ color, label }) {
+  return (
+    <div style={{
+      width: "100%", height: "100%",
+      background: color,
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      position: "relative", overflow: "hidden",
+    }}>
+      {/* subtle grid texture */}
+      <svg style={{ position:"absolute", inset:0, opacity:0.07, width:"100%", height:"100%" }}>
+        <defs>
+          <pattern id="g" width="32" height="32" patternUnits="userSpaceOnUse">
+            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="white" strokeWidth="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#g)"/>
+      </svg>
+      <div style={{
+        fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.35)",
+        letterSpacing: "0.05em", textTransform: "uppercase", textAlign: "center",
+        padding: "0 24px", lineHeight: 1.6,
+      }}>
+        [ image output ]<br/>
+        <span style={{ fontSize: "10px", opacity: 0.7 }}>{label}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Swipe Card ────────────────────────────────────────────────────────────
+function SwipeCard({ image, onSwipe, isTop, stackIndex }) {
+  const cardRef = useRef(null);
+  const startRef = useRef(null);
+  const dragRef = useRef({ x: 0, y: 0, active: false });
+  const animRef = useRef(null);
+  const [drag, setDrag] = useState({ x: 0, y: 0 });
+  const [releasing, setReleasing] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  const THRESHOLD = 100;
+  const ROT_FACTOR = 0.08;
+
+  const getPointer = (e) => {
+    if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    e.preventDefault();
+    const p = getPointer(e);
+    startRef.current = p;
+    dragRef.current = { x: 0, y: 0, active: true };
+    window.addEventListener("mousemove", onPointerMove);
+    window.addEventListener("touchmove", onPointerMove, { passive: false });
+    window.addEventListener("mouseup", onPointerUp);
+    window.addEventListener("touchend", onPointerUp);
+  };
+
+  const onPointerMove = useCallback((e) => {
+    if (!dragRef.current.active) return;
+    e.preventDefault();
+    const p = getPointer(e);
+    const dx = p.x - startRef.current.x;
+    const dy = p.y - startRef.current.y;
+    dragRef.current = { x: dx, y: dy, active: true };
+    setDrag({ x: dx, y: dy });
+  }, []);
+
+  const onPointerUp = useCallback(() => {
+    if (!dragRef.current.active) return;
+    dragRef.current.active = false;
+    window.removeEventListener("mousemove", onPointerMove);
+    window.removeEventListener("touchmove", onPointerMove);
+    window.removeEventListener("mouseup", onPointerUp);
+    window.removeEventListener("touchend", onPointerUp);
+
+    const { x } = dragRef.current;
+    if (Math.abs(x) > THRESHOLD) {
+      const dir = x > 0 ? "right" : "left";
+      flyOut(dir);
+    } else {
+      setReleasing(true);
+      setDrag({ x: 0, y: 0 });
+      setTimeout(() => setReleasing(false), 300);
+    }
+  }, []);
+
+  const flyOut = (dir) => {
+    setReleasing(true);
+    const targetX = dir === "right" ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
+    setDrag({ x: targetX, y: dragRef.current.y || 0 });
+    setTimeout(() => {
+      setGone(true);
+      onSwipe(dir, image);
+    }, 350);
+  };
+
+  // Expose flyOut for button triggers
+  useEffect(() => {
+    if (isTop && cardRef.current) {
+      cardRef.current.__flyOut = flyOut;
+    }
+  }, [isTop]);
+
+  if (gone) return null;
+
+  const rot = drag.x * ROT_FACTOR;
+  const keepOpacity = Math.min(Math.max(drag.x / THRESHOLD, 0), 1);
+  const deleteOpacity = Math.min(Math.max(-drag.x / THRESHOLD, 0), 1);
+
+  const scale = isTop ? 1 : (stackIndex === 1 ? 0.95 : 0.90);
+  const translateY = isTop ? 0 : (stackIndex === 1 ? 18 : 34);
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseDown={isTop ? onPointerDown : undefined}
+      onTouchStart={isTop ? onPointerDown : undefined}
+      style={{
+        position: "absolute",
+        inset: 0,
+        cursor: isTop ? "grab" : "default",
+        userSelect: "none",
+        willChange: "transform",
+        transform: `translateY(${translateY}px) scale(${scale}) translateX(${drag.x}px) translateY(${drag.y * 0.3}px) rotate(${rot}deg)`,
+        transition: releasing ? "transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275)" : "none",
+        zIndex: isTop ? 10 : (stackIndex === 1 ? 9 : 8),
+        transformOrigin: "50% 100%",
+      }}
+    >
+      <div style={{
+        width: "100%", height: "100%",
+        borderRadius: "20px",
+        overflow: "hidden",
+        boxShadow: isTop
+          ? "0 24px 80px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.4)"
+          : "0 8px 24px rgba(0,0,0,0.4)",
+        background: "#141414",
+        position: "relative",
+      }}>
+        <ImagePlaceholder color={image.placeholder_color} label={image.label} />
+
+        {/* KEEP overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `oklch(65% 0.18 145 / ${keepOpacity * 0.55})`,
+          borderRadius: "20px",
+          display: "flex", alignItems: "flex-start", justifyContent: "flex-start",
+          padding: "28px",
+          pointerEvents: "none",
+          opacity: keepOpacity,
+        }}>
+          <div style={{
+            border: "3px solid var(--green)",
+            borderRadius: "10px",
+            padding: "6px 16px",
+            color: "var(--green)",
+            fontSize: "26px",
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            transform: "rotate(-8deg)",
+            textShadow: "0 0 20px oklch(65% 0.18 145 / 0.6)",
+          }}>KEEP</div>
+        </div>
+
+        {/* DELETE overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `oklch(62% 0.2 25 / ${deleteOpacity * 0.55})`,
+          borderRadius: "20px",
+          display: "flex", alignItems: "flex-start", justifyContent: "flex-end",
+          padding: "28px",
+          pointerEvents: "none",
+          opacity: deleteOpacity,
+        }}>
+          <div style={{
+            border: "3px solid var(--red)",
+            borderRadius: "10px",
+            padding: "6px 16px",
+            color: "var(--red)",
+            fontSize: "26px",
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            transform: "rotate(8deg)",
+            textShadow: "0 0 20px oklch(62% 0.2 25 / 0.6)",
+          }}>SKIP</div>
+        </div>
+
+        {/* filename tag */}
+        <div style={{
+          position: "absolute", bottom: "16px", left: 0, right: 0,
+          display: "flex", justifyContent: "center",
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(10px)",
+            borderRadius: "20px",
+            padding: "5px 14px",
+            fontSize: "11px",
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: "monospace",
+            letterSpacing: "0.02em",
+            maxWidth: "80%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>{image.filename}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Collection Sheet ──────────────────────────────────────────────────────
+function CollectionSheet({ collections, activeId, onSelect, onAddCollection, onClose, visible }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 50,
+      pointerEvents: visible ? "all" : "none",
+    }}>
+      {/* backdrop */}
+      <div onClick={onClose} style={{
+        position: "absolute", inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(4px)",
+        opacity: visible ? 1 : 0,
+        transition: "opacity 0.25s",
+      }} />
+      {/* sheet */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        background: "#141414",
+        borderRadius: "20px 20px 0 0",
+        padding: "0 0 32px",
+        transform: visible ? "translateY(0)" : "translateY(100%)",
+        transition: "transform 0.3s cubic-bezier(0.32,0.72,0,1)",
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+      }}>
+        {/* drag handle */}
+        <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 8px" }}>
+          <div style={{ width:36, height:4, borderRadius:2, background:"#2e2e2e" }} />
+        </div>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "8px 20px 16px",
+        }}>
+          <span style={{ fontSize:15, fontWeight:600, color:"#f0ede8" }}>Save to collection</span>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#6b6b6b", cursor:"pointer", padding:4 }}>
+            <IconClose />
+          </button>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:2, padding:"0 12px" }}>
+          {collections.map(col => (
+            <button key={col.id} onClick={() => { onSelect(col.id); onClose(); }} style={{
+              display:"flex", alignItems:"center", gap:14,
+              padding:"13px 12px",
+              background: col.id === activeId ? "#1e1e1e" : "transparent",
+              border: "none",
+              borderRadius: 12,
+              cursor:"pointer",
+              textAlign:"left",
+              transition:"background 0.15s",
+            }}>
+              <div style={{
+                width:38, height:38, borderRadius:10,
+                background:"#1e1e1e",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:18, flexShrink:0,
+                border: col.id === activeId ? "1.5px solid oklch(65% 0.18 145)" : "1.5px solid #2a2a2a",
+              }}>
+                {col.icon}
+              </div>
+              <span style={{ fontSize:15, color: col.id === activeId ? "#f0ede8" : "#a0a0a0", fontWeight: col.id === activeId ? 600 : 400 }}>
+                {col.label}
+              </span>
+              {col.id === activeId && (
+                <div style={{ marginLeft:"auto" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="oklch(65% 0.18 145)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ height:1, background:"#1e1e1e", margin:"12px 20px" }} />
+        <div style={{ padding:"0 12px" }}>
+          <button onClick={() => { onAddCollection(); onClose(); }} style={{
+            display:"flex", alignItems:"center", gap:14,
+            padding:"13px 12px", width:"100%",
+            background:"transparent", border:"none",
+            borderRadius:12, cursor:"pointer",
+          }}>
+            <div style={{
+              width:38, height:38, borderRadius:10,
+              background:"transparent",
+              border:"1.5px dashed #2e2e2e",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              flexShrink:0,
+            }}>
+              <IconPlus />
+            </div>
+            <span style={{ fontSize:15, color:"#6b6b6b" }}>New collection…</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── New Collection Modal ──────────────────────────────────────────────────
+function NewCollectionModal({ visible, onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (visible && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 300);
+    }
+    if (!visible) { setName(""); setPath(""); }
+  }, [visible]);
+
+  const handleCreate = () => {
+    if (!name.trim()) return;
+    onCreate({ name: name.trim(), path: path.trim() });
+    onClose();
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 60,
+      display: "flex", alignItems: "flex-end",
+      pointerEvents: visible ? "all" : "none",
+    }}>
+      <div onClick={onClose} style={{
+        position: "absolute", inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(4px)",
+        opacity: visible ? 1 : 0,
+        transition: "opacity 0.25s",
+      }} />
+      <div style={{
+        position: "relative", width:"100%",
+        background:"#141414",
+        borderRadius:"20px 20px 0 0",
+        padding:"16px 20px 40px",
+        transform: visible ? "translateY(0)" : "translateY(100%)",
+        transition: "transform 0.3s cubic-bezier(0.32,0.72,0,1)",
+        boxShadow:"0 -8px 40px rgba(0,0,0,0.6)",
+      }}>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:16 }}>
+          <div style={{ width:36, height:4, borderRadius:2, background:"#2e2e2e" }} />
+        </div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24 }}>
+          <span style={{ fontSize:16, fontWeight:600 }}>New collection</span>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#6b6b6b", cursor:"pointer" }}><IconClose /></button>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          <div>
+            <label style={{ fontSize:12, color:"#6b6b6b", display:"block", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.06em" }}>Name</label>
+            <input
+              ref={inputRef}
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleCreate()}
+              placeholder="e.g. Cartoony"
+              style={{
+                width:"100%", padding:"12px 14px",
+                background:"#1e1e1e", border:"1.5px solid #2a2a2a",
+                borderRadius:10, color:"#f0ede8",
+                fontSize:15, fontFamily:"'DM Sans', sans-serif",
+                outline:"none",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize:12, color:"#6b6b6b", display:"block", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.06em" }}>Output path <span style={{ color:"#3a3a3a" }}>(optional)</span></label>
+            <input
+              value={path}
+              onChange={e => setPath(e.target.value)}
+              placeholder="/home/user/ComfyUI/output/cartoony"
+              style={{
+                width:"100%", padding:"12px 14px",
+                background:"#1e1e1e", border:"1.5px solid #2a2a2a",
+                borderRadius:10, color:"#f0ede8",
+                fontSize:14, fontFamily:"monospace",
+                outline:"none",
+              }}
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleCreate}
+          disabled={!name.trim()}
+          style={{
+            marginTop:20, width:"100%",
+            padding:"14px",
+            background: name.trim() ? "oklch(65% 0.18 145)" : "#1e1e1e",
+            border:"none", borderRadius:12,
+            color: name.trim() ? "#0a0a0a" : "#3a3a3a",
+            fontSize:15, fontWeight:600,
+            cursor: name.trim() ? "pointer" : "default",
+            transition:"all 0.2s",
+          }}
+        >Create collection</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Settings Modal ────────────────────────────────────────────────────────
+function SettingsModal({ visible, onClose, settings, onSave }) {
+  const [local, setLocal] = useState(settings);
+  useEffect(() => { setLocal(settings); }, [settings, visible]);
+
+  const Field = ({ label, hint, children }) => (
+    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+      <label style={{ fontSize:12, color:"#6b6b6b", textTransform:"uppercase", letterSpacing:"0.06em" }}>{label}</label>
+      {children}
+      {hint && <span style={{ fontSize:11, color:"#3a3a3a" }}>{hint}</span>}
+    </div>
+  );
+
+  const inputStyle = {
+    width:"100%", padding:"12px 14px",
+    background:"#1e1e1e", border:"1.5px solid #2a2a2a",
+    borderRadius:10, color:"#f0ede8",
+    fontSize:14, fontFamily:"monospace",
+    outline:"none",
+  };
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, zIndex:60,
+      display:"flex", alignItems:"flex-end",
+      pointerEvents: visible ? "all" : "none",
+    }}>
+      <div onClick={onClose} style={{
+        position:"absolute", inset:0,
+        background:"rgba(0,0,0,0.75)",
+        backdropFilter:"blur(4px)",
+        opacity: visible ? 1 : 0,
+        transition:"opacity 0.25s",
+      }} />
+      <div style={{
+        position:"relative", width:"100%",
+        background:"#141414",
+        borderRadius:"20px 20px 0 0",
+        padding:"16px 20px 44px",
+        transform: visible ? "translateY(0)" : "translateY(100%)",
+        transition:"transform 0.3s cubic-bezier(0.32,0.72,0,1)",
+        boxShadow:"0 -8px 40px rgba(0,0,0,0.6)",
+        maxHeight:"85vh",
+        overflowY:"auto",
+      }}>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:16 }}>
+          <div style={{ width:36, height:4, borderRadius:2, background:"#2e2e2e" }} />
+        </div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24 }}>
+          <span style={{ fontSize:16, fontWeight:600 }}>Settings</span>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#6b6b6b", cursor:"pointer" }}><IconClose /></button>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+          <Field label="ComfyUI output path" hint="Root folder to watch for new images">
+            <input style={inputStyle} value={local.outputPath} onChange={e => setLocal(p=>({...p, outputPath:e.target.value}))} placeholder="/home/user/ComfyUI/output" />
+          </Field>
+          <Field label="Trash folder path" hint="Where deleted images are moved">
+            <input style={inputStyle} value={local.trashPath} onChange={e => setLocal(p=>({...p, trashPath:e.target.value}))} placeholder="/home/user/ComfyUI/output/.trash" />
+          </Field>
+          <Field label="API base URL" hint="Your homelab server URL">
+            <input style={inputStyle} value={local.apiUrl} onChange={e => setLocal(p=>({...p, apiUrl:e.target.value}))} placeholder="http://192.168.1.100:7860" />
+          </Field>
+
+          <div style={{ height:1, background:"#1e1e1e" }} />
+
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div>
+              <div style={{ fontSize:14, color:"#f0ede8" }}>Auto-advance on swipe</div>
+              <div style={{ fontSize:12, color:"#6b6b6b", marginTop:2 }}>Go to next image immediately</div>
+            </div>
+            <button
+              onClick={() => setLocal(p=>({...p, autoAdvance:!p.autoAdvance}))}
+              style={{
+                width:44, height:26, borderRadius:13,
+                background: local.autoAdvance ? "oklch(65% 0.18 145)" : "#2a2a2a",
+                border:"none", cursor:"pointer",
+                position:"relative", transition:"background 0.2s", flexShrink:0,
+              }}
+            >
+              <div style={{
+                position:"absolute", top:3,
+                left: local.autoAdvance ? "calc(100% - 23px)" : "3px",
+                width:20, height:20, borderRadius:"50%",
+                background:"white",
+                transition:"left 0.2s",
+              }} />
+            </button>
+          </div>
+
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div>
+              <div style={{ fontSize:14, color:"#f0ede8" }}>Haptic feedback</div>
+              <div style={{ fontSize:12, color:"#6b6b6b", marginTop:2 }}>Vibrate on swipe decision</div>
+            </div>
+            <button
+              onClick={() => setLocal(p=>({...p, haptic:!p.haptic}))}
+              style={{
+                width:44, height:26, borderRadius:13,
+                background: local.haptic ? "oklch(65% 0.18 145)" : "#2a2a2a",
+                border:"none", cursor:"pointer",
+                position:"relative", transition:"background 0.2s", flexShrink:0,
+              }}
+            >
+              <div style={{
+                position:"absolute", top:3,
+                left: local.haptic ? "calc(100% - 23px)" : "3px",
+                width:20, height:20, borderRadius:"50%",
+                background:"white",
+                transition:"left 0.2s",
+              }} />
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={() => { onSave(local); onClose(); }}
+          style={{
+            marginTop:24, width:"100%",
+            padding:"14px",
+            background:"oklch(65% 0.18 145)",
+            border:"none", borderRadius:12,
+            color:"#0a0a0a", fontSize:15, fontWeight:600,
+            cursor:"pointer",
+          }}
+        >Save settings</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Empty State ───────────────────────────────────────────────────────────
+function EmptyState({ onReset }) {
+  return (
+    <div style={{
+      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+      height:"100%", gap:16, padding:"0 40px", textAlign:"center",
+    }}>
+      <div style={{ fontSize:56, opacity:0.15, lineHeight:1 }}>✓</div>
+      <div style={{ fontSize:20, fontWeight:600, color:"#f0ede8" }}>All caught up</div>
+      <div style={{ fontSize:14, color:"#6b6b6b", lineHeight:1.6 }}>
+        No more images to review in this queue.
+      </div>
+      <button onClick={onReset} style={{
+        marginTop:8, padding:"10px 24px",
+        background:"#1e1e1e", border:"1.5px solid #2a2a2a",
+        borderRadius:24, color:"#a0a0a0",
+        fontSize:14, cursor:"pointer",
+      }}>Reload queue</button>
+    </div>
+  );
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────
+function Toast({ msg, visible }) {
+  return (
+    <div style={{
+      position:"fixed", bottom:104, left:"50%",
+      transform:`translateX(-50%) translateY(${visible ? 0 : 20}px)`,
+      opacity: visible ? 1 : 0,
+      transition:"all 0.2s",
+      background:"rgba(20,20,20,0.92)",
+      backdropFilter:"blur(12px)",
+      border:"1px solid #2a2a2a",
+      borderRadius:24, padding:"8px 18px",
+      fontSize:13, color:"#a0a0a0",
+      pointerEvents:"none",
+      zIndex:40,
+      whiteSpace:"nowrap",
+    }}>{msg}</div>
+  );
+}
+
+// ─── Main App ──────────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "showHints": true,
+  "stackPeek": true,
+  "cardRadius": 20,
+  "swipeThreshold": 100
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  const [images, setImages] = useState([...MOCK_IMAGES]);
+  const [history, setHistory] = useState([]);
+  const [collections, setCollections] = useState([...MOCK_COLLECTIONS]);
+  const [targetCollection, setTargetCollection] = useState("default");
+  const [showCollectionSheet, setShowCollectionSheet] = useState(false);
+  const [showNewCollection, setShowNewCollection] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    outputPath: "/home/user/ComfyUI/output",
+    trashPath:  "/home/user/ComfyUI/output/.trash",
+    apiUrl:     "http://192.168.1.100:7860",
+    autoAdvance: true,
+    haptic: true,
+  });
+  const [toast, setToast] = useState({ msg:"", visible:false });
+  const [toastTimer, setToastTimer] = useState(null);
+  const topCardRef = useRef(null);
+
+  const showToast = (msg) => {
+    if (toastTimer) clearTimeout(toastTimer);
+    setToast({ msg, visible:true });
+    const t = setTimeout(() => setToast(p => ({...p, visible:false})), 1800);
+    setToastTimer(t);
+  };
+
+  const handleSwipe = (dir, image) => {
+    if (settings.haptic && navigator.vibrate) navigator.vibrate(dir === "right" ? [20] : [10, 30, 10]);
+    setImages(prev => prev.filter(i => i.id !== image.id));
+    setHistory(prev => [...prev, { image, dir, collection: targetCollection }]);
+    if (dir === "right") {
+      const col = collections.find(c => c.id === targetCollection);
+      showToast(`Kept → ${col?.label || targetCollection}`);
+    } else {
+      showToast("Moved to trash");
+    }
+  };
+
+  const handleUndo = () => {
+    if (!history.length) return;
+    const last = history[history.length - 1];
+    setHistory(prev => prev.slice(0, -1));
+    setImages(prev => [last.image, ...prev]);
+    showToast("Undone ↩");
+  };
+
+  const triggerSwipe = (dir) => {
+    // find top card DOM ref and call flyOut
+    const cards = document.querySelectorAll("[data-topcard]");
+    if (cards[0]?.__flyOut) cards[0].__flyOut(dir);
+  };
+
+  const handleButtonSwipe = (dir) => {
+    if (!images.length) return;
+    const topImage = images[0];
+    if (settings.haptic && navigator.vibrate) navigator.vibrate(dir === "right" ? [20] : [10, 30, 10]);
+    handleSwipe(dir, topImage);
+  };
+
+  const activeCol = collections.find(c => c.id === targetCollection) || collections[0];
+  const remaining = images.length;
+
+  return (
+    <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", background:"var(--bg)", position:"relative", overflow:"hidden" }}>
+
+      {/* ── Header ── */}
+      <div style={{
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        padding:"16px 20px 8px",
+        flexShrink:0,
+        zIndex:20,
+      }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:17, fontWeight:700, letterSpacing:"-0.02em", color:"#f0ede8" }}>comfypick</span>
+          {remaining > 0 && (
+            <span style={{
+              fontSize:11, fontWeight:600,
+              background:"#1e1e1e", border:"1px solid #2a2a2a",
+              borderRadius:20, padding:"2px 8px",
+              color:"#6b6b6b", letterSpacing:"0.03em",
+            }}>{remaining}</span>
+          )}
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button
+            onClick={handleUndo}
+            disabled={!history.length}
+            style={{
+              width:40, height:40, borderRadius:12,
+              background:"#141414", border:"1.5px solid #2a2a2a",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor: history.length ? "pointer" : "default",
+              color: history.length ? "#a0a0a0" : "#2a2a2a",
+              transition:"all 0.15s",
+            }}
+          ><IconUndo /></button>
+          <button
+            onClick={() => setShowSettings(true)}
+            style={{
+              width:40, height:40, borderRadius:12,
+              background:"#141414", border:"1.5px solid #2a2a2a",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer", color:"#a0a0a0",
+            }}
+          ><IconSettings /></button>
+        </div>
+      </div>
+
+      {/* ── Card Stack ── */}
+      <div style={{
+        flex:1, position:"relative",
+        padding: "8px 16px 0",
+        minHeight:0,
+      }}>
+        {remaining === 0 ? (
+          <EmptyState onReset={() => setImages([...MOCK_IMAGES])} />
+        ) : (
+          images.slice(0, 3).map((img, i) => (
+            <SwipeCard
+              key={img.id}
+              image={img}
+              isTop={i === 0}
+              stackIndex={i}
+              onSwipe={handleSwipe}
+            />
+          ))
+        )}
+
+        {/* hint arrows */}
+        {tweaks.showHints && remaining > 0 && (
+          <>
+            <div style={{
+              position:"absolute", left:24, top:"50%", transform:"translateY(-50%)",
+              color:"rgba(255,255,255,0.07)", fontSize:13, fontWeight:700,
+              letterSpacing:"0.1em", textTransform:"uppercase",
+              pointerEvents:"none", userSelect:"none",
+              writingMode:"vertical-rl",
+            }}>← skip</div>
+            <div style={{
+              position:"absolute", right:24, top:"50%", transform:"translateY(-50%)",
+              color:"rgba(255,255,255,0.07)", fontSize:13, fontWeight:700,
+              letterSpacing:"0.1em", textTransform:"uppercase",
+              pointerEvents:"none", userSelect:"none",
+              writingMode:"vertical-rl", transform:"translateY(-50%) rotate(180deg)",
+            }}>keep →</div>
+          </>
+        )}
+      </div>
+
+      {/* ── Action Buttons ── */}
+      {remaining > 0 && (
+        <div style={{
+          display:"flex", justifyContent:"center", alignItems:"center",
+          gap:24, padding:"16px 20px 12px",
+          flexShrink:0, zIndex:20,
+        }}>
+          <button
+            onClick={() => handleButtonSwipe("left")}
+            style={{
+              width:60, height:60, borderRadius:"50%",
+              background:"#141414",
+              border:"2px solid oklch(62% 0.2 25 / 0.5)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer", color:"var(--red)",
+              boxShadow:"0 0 20px oklch(62% 0.2 25 / 0.1)",
+              transition:"transform 0.1s, box-shadow 0.1s",
+            }}
+            onPointerDown={e => e.currentTarget.style.transform="scale(0.92)"}
+            onPointerUp={e => e.currentTarget.style.transform="scale(1)"}
+          ><IconX /></button>
+
+          <button
+            onClick={() => handleButtonSwipe("right")}
+            style={{
+              width:60, height:60, borderRadius:"50%",
+              background:"#141414",
+              border:"2px solid oklch(65% 0.18 145 / 0.5)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer", color:"var(--green)",
+              boxShadow:"0 0 20px oklch(65% 0.18 145 / 0.1)",
+              transition:"transform 0.1s, box-shadow 0.1s",
+            }}
+            onPointerDown={e => e.currentTarget.style.transform="scale(0.92)"}
+            onPointerUp={e => e.currentTarget.style.transform="scale(1)"}
+          ><IconCheck /></button>
+        </div>
+      )}
+
+      {/* ── Bottom Bar: pill collection selector ── */}
+      <div style={{
+        flexShrink:0, zIndex:20,
+        paddingBottom:28,
+        background:"linear-gradient(to top, #090909 60%, transparent)",
+      }}>
+        {/* label row */}
+        <div style={{
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"0 18px 8px",
+        }}>
+          <span style={{ fontSize:11, color:"#3a3a3a", textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>Save to</span>
+          <button
+            onClick={() => setShowNewCollection(true)}
+            style={{
+              display:"flex", alignItems:"center", gap:5,
+              background:"none", border:"none",
+              color:"#4a4a4a", cursor:"pointer",
+              fontSize:11, fontWeight:600,
+              letterSpacing:"0.06em", textTransform:"uppercase",
+              padding:0,
+            }}
+          >
+            <IconPlus />
+            <span>New</span>
+          </button>
+        </div>
+        {/* scrollable pills */}
+        <div style={{
+          display:"flex", gap:8,
+          overflowX:"auto", overflowY:"hidden",
+          padding:"2px 18px 2px",
+          scrollbarWidth:"none",
+          WebkitOverflowScrolling:"touch",
+          touchAction:"pan-x",
+        }}
+        className="pill-row"
+        >
+          {collections.filter(c => c.id !== "all").map(col => {
+            const isActive = col.id === targetCollection;
+            return (
+              <button
+                key={col.id}
+                onClick={() => setTargetCollection(col.id)}
+                style={{
+                  flexShrink:0,
+                  display:"flex", alignItems:"center", gap:6,
+                  padding:"8px 14px",
+                  borderRadius:100,
+                  border: isActive ? "1.5px solid oklch(65% 0.18 145 / 0.6)" : "1.5px solid #242424",
+                  background: isActive ? "oklch(65% 0.18 145 / 0.12)" : "#141414",
+                  color: isActive ? "oklch(72% 0.16 145)" : "#6b6b6b",
+                  fontSize:13,
+                  fontWeight: isActive ? 600 : 400,
+                  fontFamily:"'DM Sans', sans-serif",
+                  cursor:"pointer",
+                  transition:"all 0.15s",
+                  whiteSpace:"nowrap",
+                }}
+              >
+                <span style={{ fontSize:14, lineHeight:1 }}>{col.icon}</span>
+                <span>{col.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Modals ── */}
+      <CollectionSheet
+        collections={collections}
+        activeId={targetCollection}
+        onSelect={setTargetCollection}
+        onAddCollection={() => { setShowCollectionSheet(false); setTimeout(() => setShowNewCollection(true), 100); }}
+        onClose={() => setShowCollectionSheet(false)}
+        visible={showCollectionSheet}
+      />
+
+      <NewCollectionModal
+        visible={showNewCollection}
+        onClose={() => setShowNewCollection(false)}
+        onCreate={({ name, path }) => {
+          const id = name.toLowerCase().replace(/\s+/g, "_");
+          setCollections(prev => [...prev, { id, label: name, icon: "📁", color: "#6b6b6b" }]);
+          setTargetCollection(id);
+          showToast(`Collection "${name}" created`);
+        }}
+      />
+
+      <SettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        settings={settings}
+        onSave={setSettings}
+      />
+
+      <Toast msg={toast.msg} visible={toast.visible} />
+
+      {/* ── Tweaks ── */}
+      <TweaksPanel title="Tweaks">
+        <TweakToggle id="showHints" label="Show swipe hints" />
+        <TweakToggle id="stackPeek" label="Peek at next card" />
+        <TweakSlider id="cardRadius" label="Card radius" min={0} max={32} step={1} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
