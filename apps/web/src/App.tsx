@@ -35,10 +35,28 @@ export default function App() {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [backendReady, setBackendReady] = useState<boolean | null>(null);
   const cardStackRef = useRef<any>(null);
 
   const imageQueue = useImageQueue(settings.apiUrl);
   const collections = useCollections(settings.apiUrl);
+
+  // Check backend connectivity on mount and when apiUrl changes
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const baseUrl = settings.apiUrl || window.location.origin;
+        const response = await fetch(`${baseUrl}/api/hello`, { method: 'GET' });
+        setBackendReady(response.ok);
+      } catch {
+        setBackendReady(false);
+      }
+    };
+
+    checkBackend();
+    const interval = setInterval(checkBackend, 3000);
+    return () => clearInterval(interval);
+  }, [settings.apiUrl]);
 
   // Auto-select first collection
   useEffect(() => {
@@ -103,6 +121,56 @@ export default function App() {
     if (imageQueue.images.length === 0) return;
     cardStackRef.current?.flyOut(dir);
   };
+
+  if (backendReady === false) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#090909',
+          color: '#f0ede8',
+          gap: 24,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 64 }}>⚠️</div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Backend Unreachable</div>
+          <div style={{ fontSize: 14, color: '#6b6b6b', marginBottom: 24 }}>
+            The server may be starting up. Please wait...
+          </div>
+        </div>
+        <button
+          onClick={() => setBackendReady(null)}
+          style={{
+            padding: '12px 24px',
+            background: 'oklch(65% 0.18 145)',
+            border: 'none',
+            borderRadius: 8,
+            color: '#0a0a0a',
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.9';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
