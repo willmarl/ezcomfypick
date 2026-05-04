@@ -125,7 +125,11 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
     if (!imagePath || busy) return;
     setBusy(true);
     try {
-      await apiClient.galleryTrash(imagePath);
+      if (isQueue) {
+        await apiClient.queueTrash(imagePath);
+      } else {
+        await apiClient.galleryTrash(imagePath);
+      }
       onActionComplete('trash');
       onClose();
     } catch (err) {

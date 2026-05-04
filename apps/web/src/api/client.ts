@@ -146,7 +146,10 @@ export const apiClient = {
 
   galleryTrash: async (path: string): Promise<{ ok: boolean }> => {
     const client = createClient();
-    return client.post('gallery/trash', { json: { path } }).json();
+    // If path is just a filename (no collection prefix), it's in trash
+    const isTrashImage = !path.includes('/');
+    const endpoint = isTrashImage ? 'trash/trash' : 'gallery/trash';
+    return client.post(endpoint, { json: { path } }).json();
   },
 
   galleryReadd: async (path: string): Promise<{ ok: boolean }> => {
@@ -220,5 +223,10 @@ export const apiClient = {
     return client.post('queue/move', {
       json: { from_path: fromPath, to_collection: toCollection },
     }).json();
+  },
+
+  queueTrash: async (path: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.post('queue/trash', { json: { path } }).json();
   },
 };

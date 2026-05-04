@@ -237,7 +237,10 @@ export const GalleryPage: React.FC = () => {
         }}
       >
         <button
-          onClick={() => setSelectedCollection('')}
+          onClick={() => {
+            setSelectedCollection('');
+            setShowActions(false);
+          }}
           style={{
             padding: '8px 14px',
             borderRadius: '100px',
@@ -257,7 +260,10 @@ export const GalleryPage: React.FC = () => {
         {collections.collections.map((col) => (
           <button
             key={col.folder}
-            onClick={() => setSelectedCollection(col.folder)}
+            onClick={() => {
+              setSelectedCollection(col.folder);
+              setShowActions(false);
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               setContextMenuCollection(col);
@@ -297,7 +303,10 @@ export const GalleryPage: React.FC = () => {
           </button>
         ))}
         <button
-          onClick={() => setSelectedCollection('__queue__')}
+          onClick={() => {
+            setSelectedCollection('__queue__');
+            setShowActions(false);
+          }}
           style={{
             padding: '8px 14px',
             borderRadius: '100px',
@@ -319,7 +328,10 @@ export const GalleryPage: React.FC = () => {
           <span>Queue</span>
         </button>
         <button
-          onClick={() => setSelectedCollection('__trash__')}
+          onClick={() => {
+            setSelectedCollection('__trash__');
+            setShowActions(false);
+          }}
           style={{
             padding: '8px 14px',
             borderRadius: '100px',

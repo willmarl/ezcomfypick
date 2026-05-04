@@ -880,6 +880,20 @@ def trash_delete(path: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/trash/trash")
+def trash_trash(req: TrashPathRequest):
+    """Trash an image (already in trash, so just return ok)."""
+    try:
+        # Validate that the path exists in trash
+        validate_trash_path(req.path)
+        # Image is already in trash, no action needed
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/trash/empty")
 def trash_empty():
     """Delete all items from trash."""
@@ -918,6 +932,30 @@ def get_queue_images(offset: int = 0, limit: int = 30):
         paginated = images[offset : offset + limit]
 
         return {"images": paginated, "has_more": has_more}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/queue/trash")
+def queue_trash(req: GalleryPathRequest):
+    """Move a queue image to trash."""
+    try:
+        source_path = validate_image_path(req.path)
+
+        dest_path = TRASH_DIR / source_path.name
+        if dest_path.exists():
+            stem = dest_path.stem
+            suffix = dest_path.suffix
+            counter = 1
+            while dest_path.exists():
+                dest_path = TRASH_DIR / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+        shutil.move(str(source_path), str(dest_path))
+
+        return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
