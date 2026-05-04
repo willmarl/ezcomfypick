@@ -44,11 +44,12 @@ A mobile-first web app for sorting ComfyUI image outputs with a Tinder-style swi
 update volume path to where you have comfyui
 
 ```bash
-docker run -d -p 8080:8000 \
-  -e IMAGE_DIR=/images \
+docker run -d -p 1234:8000 \
   -v ~/ComfyUI:/images \
   willmarl/ezcomfypick:latest
 ```
+
+Visit `http://localhost:1234` (or `http://<machine-ip>:1234`) in your browser.
 
 ## Docker compose setup
 
@@ -57,6 +58,8 @@ Edit `docker-compose.yml` volumes to point to ComfyUI folder.
 > can also change to launch webui on desired port
 
 Then run `docker compose up --build` whilst in repo
+
+Visit `http://localhost:1234` (or `http://<machine-ip>:1234`) in your browser.
 
 ## Dev Setup
 
@@ -88,7 +91,7 @@ cd apps/web
 pnpm run dev
 ```
 
-Visit `http://localhost:5173` in your browser.
+Visit `http://localhost:5173`
 
 ## Directory Structure (Runtime)
 

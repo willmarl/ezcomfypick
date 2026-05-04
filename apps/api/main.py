@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-IMAGE_DIR = Path(os.environ.get("IMAGE_DIR", "/home/cat/Pictures/test/"))
+IMAGE_DIR = Path("/images")
 OUTPUT_DIR = IMAGE_DIR / "output"
 COLLECTIONS_DIR = IMAGE_DIR / "good-output"
 TRASH_DIR = IMAGE_DIR / "trash-output"
