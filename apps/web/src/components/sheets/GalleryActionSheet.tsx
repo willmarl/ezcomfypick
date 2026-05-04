@@ -60,13 +60,10 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
   };
 
   const handleMove = async (toCollection: string) => {
-    console.log('handleMove called with:', { imagePath, toCollection, busy });
     if (!imagePath || busy) return;
     setBusy(true);
     try {
-      console.log('Calling galleryMove API...');
       const res = await apiClient.galleryMove(imagePath, toCollection);
-      console.log('galleryMove response:', res);
       onActionComplete('move', res.new_path);
       onClose();
     } catch (err) {
@@ -78,13 +75,10 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
   };
 
   const handleTrash = async () => {
-    console.log('handleTrash called', { imagePath, busy });
     if (!imagePath || busy) return;
     setBusy(true);
     try {
-      console.log('Calling galleryTrash...');
       await apiClient.galleryTrash(imagePath);
-      console.log('galleryTrash success');
       onActionComplete('trash');
       onClose();
     } catch (err) {
@@ -96,13 +90,10 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
   };
 
   const handleReadd = async () => {
-    console.log('handleReadd called', { imagePath, busy });
     if (!imagePath || busy) return;
     setBusy(true);
     try {
-      console.log('Calling galleryReadd...');
       await apiClient.galleryReadd(imagePath);
-      console.log('galleryReadd success');
       onActionComplete('readd');
       onClose();
     } catch (err) {
@@ -247,7 +238,6 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
                 <button
                   key={col.folder}
                   onClick={() => {
-                    console.log('Collection button clicked:', col.folder, { isCurrentCollection, busy });
                     if (!isCurrentCollection) {
                       handleMove(col.folder);
                     }

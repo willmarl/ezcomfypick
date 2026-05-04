@@ -18,7 +18,7 @@ const THRESHOLD = 100;
 const ROT_FACTOR = 0.08;
 
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
-  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }) => {
+  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }, ref) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const startRef = useRef<{ x: number; y: number } | null>(null);
     const dragRef = useRef({ x: 0, y: 0, active: false });

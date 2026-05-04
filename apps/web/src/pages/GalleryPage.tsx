@@ -298,6 +298,12 @@ export const GalleryPage: React.FC = () => {
               border: 'none',
             }}
           >
+            <Dialog.Title style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
+              Image viewer
+            </Dialog.Title>
+            <Dialog.Description style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
+              View and manage gallery images
+            </Dialog.Description>
             {/* Down-swipe to close wrapper */}
             <div
               style={{
