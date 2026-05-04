@@ -200,4 +200,25 @@ export const apiClient = {
     const client = createClient();
     return client.delete(`tags/${encodeURIComponent(tag)}`).json();
   },
+
+  getQueueImages: async (offset: number = 0, limit: number = 30): Promise<{ images: string[]; has_more: boolean }> => {
+    const client = createClient();
+    const params = new URLSearchParams();
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    return client.get(`queue/images?${params.toString()}`).json();
+  },
+
+  getQueueImageUrl: (path: string): string => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const prefix = baseUrl ? `${baseUrl}/api` : '/api';
+    return `${prefix}/image-file/${path}`;
+  },
+
+  queueMove: async (fromPath: string, toCollection: string): Promise<{ ok: boolean; new_path: string }> => {
+    const client = createClient();
+    return client.post('queue/move', {
+      json: { from_path: fromPath, to_collection: toCollection },
+    }).json();
+  },
 };

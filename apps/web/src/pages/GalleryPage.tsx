@@ -15,8 +15,11 @@ import { Header } from '../components/Header';
 
 const isVideo = (path: string) => /\.(mp4|webm|mov)$/i.test(path);
 
-const getMediaUrl = (path: string, isTrash: boolean): string =>
-  isTrash ? apiClient.getTrashImageUrl(path) : apiClient.getGalleryImageUrl(path);
+const getMediaUrl = (path: string, isTrash: boolean, isQueue: boolean): string => {
+  if (isTrash) return apiClient.getTrashImageUrl(path);
+  if (isQueue) return apiClient.getQueueImageUrl(path);
+  return apiClient.getGalleryImageUrl(path);
+};
 
 export const GalleryPage: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
@@ -75,6 +78,8 @@ export const GalleryPage: React.FC = () => {
         let result;
         if (selectedCollection === '__trash__') {
           result = await apiClient.getTrashImages(newOffset, 30);
+        } else if (selectedCollection === '__queue__') {
+          result = await apiClient.getQueueImages(newOffset, 30);
         } else {
           result = await apiClient.getGalleryImages(
             selectedCollection || undefined,
@@ -292,6 +297,28 @@ export const GalleryPage: React.FC = () => {
           </button>
         ))}
         <button
+          onClick={() => setSelectedCollection('__queue__')}
+          style={{
+            padding: '8px 14px',
+            borderRadius: '100px',
+            border: selectedCollection === '__queue__' ? '1.5px solid oklch(65% 0.18 145 / 0.6)' : '1.5px solid #242424',
+            background: selectedCollection === '__queue__' ? 'oklch(65% 0.18 145 / 0.12)' : '#141414',
+            color: selectedCollection === '__queue__' ? 'oklch(72% 0.16 145)' : '#6b6b6b',
+            fontSize: '13px',
+            fontWeight: selectedCollection === '__queue__' ? 600 : 400,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            display: 'flex',
+            gap: '6px',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ fontSize: '14px' }}>⏱️</span>
+          <span>Queue</span>
+        </button>
+        <button
           onClick={() => setSelectedCollection('__trash__')}
           style={{
             padding: '8px 14px',
@@ -315,8 +342,8 @@ export const GalleryPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tag filter pills / Empty Trash button */}
-      {selectedCollection !== '__trash__' ? (
+      {/* Tag filter pills / Empty Trash button / Queue info */}
+      {selectedCollection !== '__trash__' && selectedCollection !== '__queue__' ? (
         <div
           style={{
             display: 'flex',
@@ -431,7 +458,7 @@ export const GalleryPage: React.FC = () => {
             >
               {isVideo(imagePath) ? (
                 <video
-                  src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
+                  src={getMediaUrl(imagePath, selectedCollection === '__trash__', selectedCollection === '__queue__')}
                   preload="metadata"
                   muted
                   style={{
@@ -443,7 +470,7 @@ export const GalleryPage: React.FC = () => {
                 />
               ) : (
                 <img
-                  src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
+                  src={getMediaUrl(imagePath, selectedCollection === '__trash__', selectedCollection === '__queue__')}
                   alt={imagePath}
                   style={{
                     width: '100%',
@@ -530,7 +557,7 @@ export const GalleryPage: React.FC = () => {
                   <SwiperSlide key={imagePath} virtualIndex={idx}>
                     {isVideo(imagePath) ? (
                       <video
-                        src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
+                        src={getMediaUrl(imagePath, selectedCollection === '__trash__', selectedCollection === '__queue__')}
                         controls
                         autoPlay
                         loop
@@ -540,7 +567,7 @@ export const GalleryPage: React.FC = () => {
                       />
                     ) : (
                       <img
-                        src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
+                        src={getMediaUrl(imagePath, selectedCollection === '__trash__', selectedCollection === '__queue__')}
                         alt={imagePath}
                         draggable={false}
                       />
@@ -596,7 +623,7 @@ export const GalleryPage: React.FC = () => {
                 return isVideo(imagePath) ? (
                   <video
                     key={`thumb-${idx}-${imagePath}`}
-                    src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
+                    src={getMediaUrl(imagePath, selectedCollection === '__trash__', selectedCollection === '__queue__')}
                     preload="metadata"
                     muted
                     onClick={() => swiperRef.current?.slideTo(idx)}
@@ -605,7 +632,7 @@ export const GalleryPage: React.FC = () => {
                 ) : (
                   <img
                     key={`thumb-${idx}-${imagePath}`}
-                    src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
+                    src={getMediaUrl(imagePath, selectedCollection === '__trash__', selectedCollection === '__queue__')}
                     alt={imagePath}
                     onClick={() => swiperRef.current?.slideTo(idx)}
                     style={thumbStyle}
@@ -774,8 +801,9 @@ export const GalleryPage: React.FC = () => {
         collections={collections.collections}
         allTags={allTags}
         isTrash={selectedCollection === '__trash__'}
+        isQueue={selectedCollection === '__queue__'}
         onActionComplete={(action, newPath) => {
-          if (action === 'move' && newPath) {
+          if (action === 'move' && newPath && !selectedCollection.startsWith('__')) {
             setImages((prev) => prev.map((p, i) => (i === activeIndex ? newPath : p)));
           } else {
             setImages((prev) => prev.filter((_, i) => i !== activeIndex));

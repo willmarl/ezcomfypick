@@ -10,6 +10,7 @@ interface GalleryActionSheetProps {
   collections: Collection[];
   allTags: string[];
   isTrash?: boolean;
+  isQueue?: boolean;
   onActionComplete: (action: 'trash' | 'readd' | 'move' | 'delete', newPath?: string) => void;
 }
 
@@ -22,6 +23,7 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
   collections,
   allTags,
   isTrash = false,
+  isQueue = false,
   onActionComplete,
 }) => {
   const [view, setView] = useState<View>('menu');
@@ -103,7 +105,12 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
     if (!imagePath || busy) return;
     setBusy(true);
     try {
-      const res = await apiClient.galleryMove(imagePath, toCollection);
+      let res;
+      if (isQueue) {
+        res = await apiClient.queueMove(imagePath, toCollection);
+      } else {
+        res = await apiClient.galleryMove(imagePath, toCollection);
+      }
       onActionComplete('move', res.new_path);
       onClose();
     } catch (err) {
@@ -296,7 +303,7 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
             <div style={{ width: 20 }} />
           )}
           <span style={{ fontSize: 16, fontWeight: 600 }}>
-            {view === 'menu' ? 'Actions' : view === 'move' ? 'Move to collection' : 'Tags'}
+            {view === 'menu' ? 'Actions' : view === 'move' ? (isQueue ? 'Add to collection' : 'Move to collection') : 'Tags'}
           </span>
           <button
             onClick={onClose}
@@ -314,6 +321,11 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
               <>
                 {actionRow(<RotateCcw size={18} />, 'Restore to queue', handleRestoreFromTrash)}
                 {actionRow(<Trash2 size={18} />, 'Delete forever', handleDeleteForever, true)}
+              </>
+            ) : isQueue ? (
+              <>
+                {actionRow(<ArrowRight size={18} />, 'Add to collection', () => setView('move'))}
+                {actionRow(<Trash2 size={18} />, 'Trash', handleTrash, true)}
               </>
             ) : (
               <>

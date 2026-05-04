@@ -77,6 +77,7 @@ export const TagBar: React.FC<TagBarProps> = ({
         background: "#0a0a0a",
         borderTop: "1px solid #1a1a1a",
         flexShrink: 0,
+        marginTop: "24px",
       }}
     >
       {/* Image tags */}

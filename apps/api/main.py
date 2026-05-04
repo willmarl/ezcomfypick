@@ -898,6 +898,65 @@ def trash_empty():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/queue/images")
+def get_queue_images(offset: int = 0, limit: int = 30):
+    """Get images from queue (output directory)."""
+    try:
+        if not OUTPUT_DIR.exists():
+            return {"images": [], "has_more": False}
+
+        images = []
+        for root, _, files in os.walk(OUTPUT_DIR):
+            for file in files:
+                if Path(file).suffix.lower() in MEDIA_EXTENSIONS:
+                    full_path = Path(root) / file
+                    relative_path = full_path.relative_to(OUTPUT_DIR)
+                    images.append(str(relative_path))
+
+        images = sorted(images)
+        has_more = len(images) > offset + limit
+        paginated = images[offset : offset + limit]
+
+        return {"images": paginated, "has_more": has_more}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/queue/move")
+def queue_move(req: GalleryMoveRequest, session = Depends(get_session)):
+    """Move a queue image to a collection."""
+    try:
+        source_path = validate_image_path(req.from_path)
+
+        dest_dir = COLLECTIONS_DIR / req.to_collection
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        dest_path = dest_dir / source_path.name
+        if dest_path.exists():
+            stem = dest_path.stem
+            suffix = dest_path.suffix
+            counter = 1
+            while dest_path.exists():
+                dest_path = dest_dir / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+        shutil.move(str(source_path), str(dest_path))
+
+        new_image_path = f"{req.to_collection}/{dest_path.name}"
+        session.exec(
+            update(ImageTag)
+            .where(ImageTag.image_path == req.from_path)
+            .values(image_path=new_image_path)
+        )
+        session.commit()
+
+        return {"ok": True, "new_path": new_image_path}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Mount static files (frontend)
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
