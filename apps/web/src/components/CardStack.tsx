@@ -22,7 +22,7 @@ export const CardStack = forwardRef<CardStackHandle, CardStackProps>(
     }));
 
     return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', padding: '8px 16px 0' }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', padding: '8px 16px 0', zIndex: 0, overflow: 'hidden' }}>
         {images.slice(0, 3).map((imagePath, i) => (
           <SwipeCard
             key={imagePath}
