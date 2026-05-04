@@ -109,11 +109,6 @@ export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }
     }
   };
 
-  const handleButtonSwipe = (dir: 'left' | 'right') => {
-    if (imageQueue.images.length === 0) return;
-    cardStackRef.current?.flyOut(dir);
-  };
-
   return (
     <div
       style={{
@@ -135,9 +130,6 @@ export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }
 
       {imageQueue.images.length > 0 && (
         <ActionButtons
-          onLeft={() => handleButtonSwipe('left')}
-          onRight={() => handleButtonSwipe('right')}
-          disabled={false}
           isMagnified={isMagnified}
           onToggleMagnify={() => setIsMagnified(m => !m)}
         />

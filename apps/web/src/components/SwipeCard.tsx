@@ -20,7 +20,7 @@ const ROT_FACTOR = 0.08;
 const isVideo = (path: string) => /\.(mp4|webm|mov)$/i.test(path);
 
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
-  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }, ref) => {
+  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const startRef = useRef<{ x: number; y: number } | null>(null);
     const dragRef = useRef({ x: 0, y: 0, active: false });

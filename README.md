@@ -37,9 +37,28 @@ A mobile-first web app for sorting ComfyUI image outputs with a Tinder-style swi
 - File-based collection metadata (JSON)
 - Supports image/video streaming with proper MIME types
 
-## Getting Started
-
 ### Installation
+
+## Docker image (recommended)
+
+update volume path to where you have comfyui
+
+```bash
+docker run -d -p 8080:8000 \
+  -e IMAGE_DIR=/images \
+  -v ~/ComfyUI:/images \
+  willmarl/ezcomfypick:latest
+```
+
+## Docker compose setup
+
+Edit `docker-compose.yml` volumes to point to ComfyUI folder.
+
+> can also change to launch webui on desired port
+
+Then run `docker compose up --build` whilst in repo
+
+## Dev Setup
 
 ```bash
 # Install dependencies
