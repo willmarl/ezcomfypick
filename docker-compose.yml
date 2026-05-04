@@ -4,9 +4,9 @@ services:
   app:
     build: .
     ports:
-      - "${PORT:-8000}:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
     environment:
-      PORT: 8000
+      PORT: ${PORT:-8000}
       IMAGE_DIR: /images
     volumes:
       - ~/Pictures/test/:/images
