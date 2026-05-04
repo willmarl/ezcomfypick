@@ -12,6 +12,8 @@ import { apiClient } from '../api/client';
 import { useCollections } from '../hooks/useCollections';
 import { Header } from '../components/Header';
 
+const isVideo = (path: string) => /\.(mp4|webm|mov)$/i.test(path);
+
 export const GalleryPage: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -256,16 +258,30 @@ export const GalleryPage: React.FC = () => {
                 padding: 0,
               }}
             >
-              <img
-                src={apiClient.getGalleryImageUrl(imagePath)}
-                alt={imagePath}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-              />
+              {isVideo(imagePath) ? (
+                <video
+                  src={apiClient.getGalleryImageUrl(imagePath)}
+                  preload="metadata"
+                  muted
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              ) : (
+                <img
+                  src={apiClient.getGalleryImageUrl(imagePath)}
+                  alt={imagePath}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              )}
             </button>
           ))}
         </div>
@@ -341,11 +357,23 @@ export const GalleryPage: React.FC = () => {
               >
                 {images.map((imagePath, idx) => (
                   <SwiperSlide key={imagePath} virtualIndex={idx}>
-                    <img
-                      src={apiClient.getGalleryImageUrl(imagePath)}
-                      alt={imagePath}
-                      draggable={false}
-                    />
+                    {isVideo(imagePath) ? (
+                      <video
+                        src={apiClient.getGalleryImageUrl(imagePath)}
+                        controls
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        draggable={false}
+                      />
+                    ) : (
+                      <img
+                        src={apiClient.getGalleryImageUrl(imagePath)}
+                        alt={imagePath}
+                        draggable={false}
+                      />
+                    )}
                   </SwiperSlide>
                 ))}
               </Swiper>
@@ -383,23 +411,33 @@ export const GalleryPage: React.FC = () => {
                 }
                 const isCurrent = offset === 0;
                 const imagePath = images[idx];
-                return (
+                const thumbStyle = {
+                  width: isCurrent ? 52 : 40,
+                  height: isCurrent ? 52 : 40,
+                  objectFit: 'cover' as const,
+                  borderRadius: '6px',
+                  border: isCurrent ? '2px solid rgba(255,255,255,0.9)' : '2px solid rgba(255,255,255,0.2)',
+                  opacity: isCurrent ? 1 : 0.6,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  flexShrink: 0,
+                };
+                return isVideo(imagePath) ? (
+                  <video
+                    key={`thumb-${idx}-${imagePath}`}
+                    src={apiClient.getGalleryImageUrl(imagePath)}
+                    preload="metadata"
+                    muted
+                    onClick={() => swiperRef.current?.slideTo(idx)}
+                    style={thumbStyle}
+                  />
+                ) : (
                   <img
                     key={`thumb-${idx}-${imagePath}`}
                     src={apiClient.getGalleryImageUrl(imagePath)}
                     alt={imagePath}
                     onClick={() => swiperRef.current?.slideTo(idx)}
-                    style={{
-                      width: isCurrent ? 52 : 40,
-                      height: isCurrent ? 52 : 40,
-                      objectFit: 'cover',
-                      borderRadius: '6px',
-                      border: isCurrent ? '2px solid rgba(255,255,255,0.9)' : '2px solid rgba(255,255,255,0.2)',
-                      opacity: isCurrent ? 1 : 0.6,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      flexShrink: 0,
-                    }}
+                    style={thumbStyle}
                   />
                 );
               })}

@@ -17,6 +17,8 @@ interface SwipeCardHandle {
 const THRESHOLD = 100;
 const ROT_FACTOR = 0.08;
 
+const isVideo = (path: string) => /\.(mp4|webm|mov)$/i.test(path);
+
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
   ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }, ref) => {
     const cardRef = useRef<HTMLDivElement>(null);
@@ -118,7 +120,21 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
             position: 'relative',
           }}
         >
-          {isMagnified ? (
+          {isVideo(imagePath) ? (
+            <video
+              src={apiClient.getImageUrl(imagePath)}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          ) : isMagnified ? (
             <TransformWrapper
               initialScale={1}
               minScale={1}

@@ -32,7 +32,16 @@ IMAGE_DIR = Path(os.environ.get("IMAGE_DIR", "/home/cat/Pictures/test/"))
 OUTPUT_DIR = IMAGE_DIR / "output"
 COLLECTIONS_DIR = IMAGE_DIR / "good-output"
 TRASH_DIR = IMAGE_DIR / "trash-output"
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".webm", ".mov"}
+
+MIME_TYPES = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif",
+    ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+}
+
+def get_mime_type(path: Path) -> str:
+    return MIME_TYPES.get(path.suffix.lower(), "application/octet-stream")
 
 
 def ensure_dirs():
@@ -71,7 +80,7 @@ def get_all_images() -> list[str]:
     images = []
     for root, _, files in os.walk(OUTPUT_DIR):
         for file in files:
-            if Path(file).suffix.lower() in IMAGE_EXTENSIONS:
+            if Path(file).suffix.lower() in MEDIA_EXTENSIONS:
                 full_path = Path(root) / file
                 relative_path = full_path.relative_to(OUTPUT_DIR)
                 images.append(str(relative_path))
@@ -130,7 +139,7 @@ def get_image_file(path: str):
     """Serve the actual image file."""
     try:
         file_path = validate_image_path(path)
-        return FileResponse(file_path, media_type="image/*")
+        return FileResponse(file_path, media_type=get_mime_type(file_path))
     except HTTPException:
         raise
 
@@ -299,7 +308,7 @@ def get_gallery_images(
                 continue
             col_name = col_path.name
             for file in sorted(col_path.iterdir()):
-                if file.suffix.lower() in IMAGE_EXTENSIONS:
+                if file.suffix.lower() in MEDIA_EXTENSIONS:
                     rel_path = f"{col_name}/{file.name}"
                     images.append(rel_path)
 
@@ -509,7 +518,7 @@ def get_gallery_image_file(path: str):
             raise HTTPException(status_code=400, detail="Invalid path")
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Image not found")
-        return FileResponse(file_path, media_type="image/*")
+        return FileResponse(file_path, media_type=get_mime_type(file_path))
     except HTTPException:
         raise
     except Exception as e:
