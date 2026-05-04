@@ -18,14 +18,15 @@ export const Header: React.FC<HeaderProps> = ({ count, canUndo, onUndo, onSettin
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       padding: '16px 20px',
       gap: '24px',
       flexShrink: 0,
       zIndex: 20,
       borderBottom: '1px solid #1a1a1a',
+      position: 'relative',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'absolute', left: '20px' }}>
         <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: '#f0ede8' }}>comfypick</span>
         {count > 0 && (
           <span style={{
@@ -86,25 +87,29 @@ export const Header: React.FC<HeaderProps> = ({ count, canUndo, onUndo, onSettin
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+      <div style={{ display: 'flex', gap: 8, position: 'absolute', right: '20px' }}>
         <button
           onClick={onUndo}
           disabled={!canUndo}
           style={{
-            width: 40,
-            height: 40,
+            padding: '6px 12px',
             borderRadius: 12,
             background: '#141414',
             border: '1.5px solid #2a2a2a',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 6,
             cursor: canUndo ? 'pointer' : 'default',
             color: canUndo ? '#a0a0a0' : '#2a2a2a',
             transition: 'all 0.15s',
+            fontSize: 13,
+            fontWeight: 500,
+            fontFamily: 'inherit',
           }}
         >
-          <RotateCcw size={18} />
+          <RotateCcw size={16} />
+          Undo
         </button>
         <button
           onClick={onSettings}
