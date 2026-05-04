@@ -195,6 +195,10 @@ class UpdateCollectionRequest(BaseModel):
     description: Optional[str] = None
 
 
+class RenameCollectionRequest(BaseModel):
+    new_name: str
+
+
 class AddTagRequest(BaseModel):
     tag: str
 
@@ -213,6 +217,83 @@ def update_collection(folder: str, req: UpdateCollectionRequest):
         if not collection:
             raise HTTPException(status_code=404, detail="Collection not found")
         return collection
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/api/collections/{folder}/rename")
+def rename_collection_endpoint(folder: str, req: RenameCollectionRequest, session = Depends(get_session)):
+    """Rename a collection folder and re-key all image tags."""
+    try:
+        new_name = req.new_name.strip()
+        if not new_name:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+
+        old_path = COLLECTIONS_DIR / folder
+        new_path = COLLECTIONS_DIR / new_name
+        if not old_path.exists():
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if new_path.exists():
+            raise HTTPException(status_code=409, detail="A collection with that name already exists")
+
+        # Re-key DB tags first (before folder rename)
+        rows = session.exec(select(ImageTag).where(ImageTag.image_path.startswith(f"{folder}/"))).all()
+        for row in rows:
+            row.image_path = f"{new_name}/{row.image_path[len(folder)+1:]}"
+        session.commit()
+
+        # Rename folder and re-key metadata
+        old_path.rename(new_path)
+        from collection_manager import read_all_metadata, write_all_metadata
+        metadata = read_all_metadata(COLLECTIONS_DIR)
+        old_emoji = metadata.pop(folder, "📁")
+        metadata[new_name] = old_emoji
+        write_all_metadata(COLLECTIONS_DIR, metadata)
+
+        collection = get_collection(COLLECTIONS_DIR, new_name)
+        return collection
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/collections/{folder}")
+def delete_collection_endpoint(folder: str, session = Depends(get_session)):
+    """Delete a collection and move all media back to the output queue."""
+    try:
+        folder_path = COLLECTIONS_DIR / folder
+        if not folder_path.exists():
+            raise HTTPException(status_code=404, detail="Collection not found")
+
+        # Move all media files back to OUTPUT_DIR
+        moved = 0
+        for file in list(folder_path.iterdir()):
+            if file.is_file():
+                dest = OUTPUT_DIR / file.name
+                if dest.exists():
+                    stem, suffix, counter = dest.stem, dest.suffix, 1
+                    while dest.exists():
+                        dest = OUTPUT_DIR / f"{stem}_{counter}{suffix}"
+                        counter += 1
+                shutil.move(str(file), str(dest))
+                moved += 1
+
+        folder_path.rmdir()
+
+        # Remove from metadata
+        from collection_manager import read_all_metadata, write_all_metadata
+        metadata = read_all_metadata(COLLECTIONS_DIR)
+        metadata.pop(folder, None)
+        write_all_metadata(COLLECTIONS_DIR, metadata)
+
+        # Delete all tags for this collection
+        session.exec(delete(ImageTag).where(ImageTag.image_path.startswith(f"{folder}/")))
+        session.commit()
+
+        return {"ok": True, "moved": moved}
     except HTTPException:
         raise
     except Exception as e:
@@ -423,6 +504,65 @@ def remove_gallery_image_tag(path: str, tag: str, session = Depends(get_session)
             delete(ImageTag).where(
                 (ImageTag.image_path == path) & (ImageTag.tag == tag)
             )
+        )
+        session.commit()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class RenameTagRequest(BaseModel):
+    new_tag: str
+
+
+@app.patch("/api/tags/{old_tag}/rename")
+def rename_tag(old_tag: str, req: RenameTagRequest, session = Depends(get_session)):
+    """Rename a tag globally across all images."""
+    try:
+        old_tag = old_tag.strip()
+        new_tag = req.new_tag.strip()
+
+        if not old_tag:
+            raise HTTPException(status_code=400, detail="Old tag cannot be empty")
+        if not new_tag:
+            raise HTTPException(status_code=400, detail="New tag cannot be empty")
+        if old_tag == new_tag:
+            raise HTTPException(status_code=400, detail="New tag must be different from old tag")
+
+        # Check if new_tag already exists
+        existing = session.exec(
+            select(ImageTag).where(ImageTag.tag == new_tag)
+        ).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="New tag already exists")
+
+        # Rename all occurrences of old_tag to new_tag
+        session.exec(
+            update(ImageTag)
+            .where(ImageTag.tag == old_tag)
+            .values(tag=new_tag)
+        )
+        session.commit()
+        return {"ok": True, "old_tag": old_tag, "new_tag": new_tag}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/tags/{tag}")
+def delete_tag(tag: str, session = Depends(get_session)):
+    """Delete a tag from all images."""
+    try:
+        tag = tag.strip()
+        if not tag:
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        # Delete all occurrences of the tag
+        session.exec(
+            delete(ImageTag).where(ImageTag.tag == tag)
         )
         session.commit()
         return {"ok": True}

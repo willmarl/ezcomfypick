@@ -67,6 +67,18 @@ export const apiClient = {
     }).json();
   },
 
+  renameCollection: async (folder: string, newName: string, apiUrl: string = ''): Promise<any> => {
+    const client = createClient(apiUrl);
+    return client.patch(`collections/${folder}/rename`, {
+      json: { new_name: newName },
+    }).json();
+  },
+
+  deleteCollection: async (folder: string, apiUrl: string = ''): Promise<{ ok: boolean; moved: number }> => {
+    const client = createClient(apiUrl);
+    return client.delete(`collections/${folder}`).json();
+  },
+
   getTags: async (imagePath: string, apiUrl: string = ''): Promise<string[]> => {
     const client = createClient(apiUrl);
     const res = await client.get(`images/${imagePath}/tags`).json<{ tags: string[] }>();
@@ -175,5 +187,17 @@ export const apiClient = {
   trashEmpty: async (): Promise<{ ok: boolean; deleted: number }> => {
     const client = createClient();
     return client.post('trash/empty', { json: {} }).json();
+  },
+
+  renameTag: async (oldTag: string, newTag: string): Promise<{ ok: boolean; old_tag: string; new_tag: string }> => {
+    const client = createClient();
+    return client.patch(`tags/${encodeURIComponent(oldTag)}/rename`, {
+      json: { new_tag: newTag },
+    }).json();
+  },
+
+  deleteTag: async (tag: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.delete(`tags/${encodeURIComponent(tag)}`).json();
   },
 };

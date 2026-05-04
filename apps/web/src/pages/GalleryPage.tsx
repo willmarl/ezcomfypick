@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, MoreHorizontal } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { GalleryActionSheet } from '../components/sheets/GalleryActionSheet';
+import { RenameCollectionSheet } from '../components/sheets/RenameCollectionSheet';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import type { Swiper as SwiperType } from 'swiper';
 import { Virtual } from 'swiper/modules';
@@ -29,6 +30,18 @@ export const GalleryPage: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showActions, setShowActions] = useState(false);
   const [actionSheetImagePath, setActionSheetImagePath] = useState<string | null>(null);
+  const [contextMenuCollection, setContextMenuCollection] = useState<any | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [showRename, setShowRename] = useState(false);
+  const [renameCollection, setRenameCollection] = useState<any | null>(null);
+  const [contextTag, setContextTag] = useState<string | null>(null);
+  const [contextTagPos, setContextTagPos] = useState({ x: 0, y: 0 });
+  const [showRenameTag, setShowRenameTag] = useState(false);
+  const [renameTagInput, setRenameTagInput] = useState('');
+  const [showDeleteTagConfirm, setShowDeleteTagConfirm] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tagLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renameTagInputRef = useRef<HTMLInputElement>(null);
   const downSwipeRef = useRef({ y: 0, x: 0 });
   const swiperRef = useRef<SwiperType | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -121,6 +134,72 @@ export const GalleryPage: React.FC = () => {
     );
   };
 
+  const handleRenameTag = async (newTag: string) => {
+    if (!contextTag || !newTag.trim() || newTag.trim() === contextTag) {
+      setShowRenameTag(false);
+      setContextTag(null);
+      return;
+    }
+    try {
+      await apiClient.renameTag(contextTag, newTag.trim());
+      setAllTags((prev) =>
+        prev.map((t) => (t === contextTag ? newTag.trim() : t))
+      );
+      setSelectedTags((prev) =>
+        prev.map((t) => (t === contextTag ? newTag.trim() : t))
+      );
+      setShowRenameTag(false);
+      setContextTag(null);
+    } catch (err) {
+      console.error('Failed to rename tag:', err);
+      alert(`Failed to rename tag: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleDeleteTag = async () => {
+    if (!contextTag) return;
+    try {
+      await apiClient.deleteTag(contextTag);
+      setAllTags((prev) => prev.filter((t) => t !== contextTag));
+      setSelectedTags((prev) => prev.filter((t) => t !== contextTag));
+      setShowDeleteTagConfirm(false);
+      setContextTag(null);
+    } catch (err) {
+      console.error('Failed to delete tag:', err);
+      alert(`Failed to delete tag: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleDeleteCollection = async () => {
+    if (!contextMenuCollection) return;
+    const folder = contextMenuCollection.folder;
+    setContextMenuCollection(null);
+    try {
+      await apiClient.deleteCollection(folder);
+      if (selectedCollection === folder) setSelectedCollection('');
+      collections.refetch();
+    } catch (err) {
+      console.error('Failed to delete collection:', err);
+      alert(`Failed to delete collection: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleRename = async (newName: string, newEmoji: string) => {
+    if (!renameCollection) return;
+    const folder = renameCollection.folder;
+    try {
+      await apiClient.updateCollection(folder, { emoji: newEmoji });
+      await apiClient.renameCollection(folder, newName);
+      if (selectedCollection === folder) setSelectedCollection(newName);
+      collections.refetch();
+      setShowRename(false);
+      setRenameCollection(null);
+    } catch (err) {
+      console.error('Failed to rename collection:', err);
+      alert(`Failed to rename collection: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   return (
     <div
       style={{
@@ -174,6 +253,23 @@ export const GalleryPage: React.FC = () => {
           <button
             key={col.folder}
             onClick={() => setSelectedCollection(col.folder)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenuCollection(col);
+              setContextMenuPos({ x: e.clientX, y: e.clientY });
+            }}
+            onPointerDown={(e) => {
+              longPressTimer.current = setTimeout(() => {
+                setContextMenuCollection(col);
+                setContextMenuPos({ x: e.clientX, y: e.clientY });
+              }, 500);
+            }}
+            onPointerUp={() => {
+              if (longPressTimer.current) clearTimeout(longPressTimer.current);
+            }}
+            onPointerLeave={() => {
+              if (longPressTimer.current) clearTimeout(longPressTimer.current);
+            }}
             style={{
               padding: '8px 14px',
               borderRadius: '100px',
@@ -239,6 +335,23 @@ export const GalleryPage: React.FC = () => {
               <button
                 key={tag}
                 onClick={() => toggleTag(tag)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextTag(tag);
+                  setContextTagPos({ x: e.clientX, y: e.clientY });
+                }}
+                onPointerDown={(e) => {
+                  tagLongPressTimer.current = setTimeout(() => {
+                    setContextTag(tag);
+                    setContextTagPos({ x: e.clientX, y: e.clientY });
+                  }, 500);
+                }}
+                onPointerUp={() => {
+                  if (tagLongPressTimer.current) clearTimeout(tagLongPressTimer.current);
+                }}
+                onPointerLeave={() => {
+                  if (tagLongPressTimer.current) clearTimeout(tagLongPressTimer.current);
+                }}
                 style={{
                   padding: '6px 12px',
                   background: isSelected ? 'oklch(65% 0.18 145 / 0.2)' : '#1a1a1a',
@@ -568,6 +681,92 @@ export const GalleryPage: React.FC = () => {
         </Dialog.Portal>
       </Dialog.Root>
 
+      {/* Collection context menu */}
+      {contextMenuCollection && (
+        <>
+          <div
+            onClick={() => setContextMenuCollection(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 150 }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenuPos.y,
+              left: contextMenuPos.x,
+              zIndex: 151,
+              background: '#1e1e1e',
+              border: '1px solid #2a2a2a',
+              borderRadius: 10,
+              overflow: 'hidden',
+              minWidth: 160,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            }}
+          >
+            <button
+              onClick={() => {
+                setRenameCollection(contextMenuCollection);
+                setShowRename(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                background: 'none',
+                border: 'none',
+                color: '#d0cdc8',
+                fontSize: 14,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                borderBottom: '1px solid #2a2a2a',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#242424';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              Rename
+            </button>
+            <button
+              onClick={handleDeleteCollection}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                background: 'none',
+                border: 'none',
+                color: '#e05555',
+                fontSize: 14,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#242424';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              Delete collection
+            </button>
+          </div>
+        </>
+      )}
+
+      <RenameCollectionSheet
+        visible={showRename}
+        onClose={() => {
+          setShowRename(false);
+          setContextMenuCollection(null);
+          setRenameCollection(null);
+        }}
+        collection={renameCollection}
+        onRename={handleRename}
+      />
+
       <GalleryActionSheet
         visible={showActions}
         onClose={() => setShowActions(false)}
@@ -584,6 +783,256 @@ export const GalleryPage: React.FC = () => {
           }
         }}
       />
+
+      {/* Tag context menu */}
+      {contextTag && (
+        <>
+          <div
+            onClick={() => setContextTag(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 150 }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: contextTagPos.y,
+              left: contextTagPos.x,
+              zIndex: 151,
+              background: '#1e1e1e',
+              border: '1px solid #2a2a2a',
+              borderRadius: 10,
+              overflow: 'hidden',
+              minWidth: 140,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            }}
+          >
+            <button
+              onClick={() => {
+                setShowRenameTag(true);
+                setRenameTagInput(contextTag);
+                setTimeout(() => renameTagInputRef.current?.focus(), 50);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                background: 'none',
+                border: 'none',
+                color: '#d0cdc8',
+                fontSize: 14,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                borderBottom: '1px solid #2a2a2a',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#242424';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              Rename
+            </button>
+            <button
+              onClick={() => {
+                setShowDeleteTagConfirm(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                background: 'none',
+                border: 'none',
+                color: '#e05555',
+                fontSize: 14,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#242424';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Rename tag dialog */}
+      {showRenameTag && contextTag && (
+        <>
+          <div
+            onClick={() => setShowRenameTag(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 300,
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: '#141414',
+              border: '1.5px solid #2a2a2a',
+              borderRadius: 12,
+              padding: '20px',
+              zIndex: 301,
+              minWidth: 280,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+            }}
+          >
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#6b6b6b', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                New tag name
+              </label>
+              <input
+                ref={renameTagInputRef}
+                value={renameTagInput}
+                onChange={(e) => setRenameTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameTag(renameTagInput);
+                  if (e.key === 'Escape') setShowRenameTag(false);
+                }}
+                placeholder="Enter new tag name"
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  background: '#1e1e1e',
+                  border: '1.5px solid #2a2a2a',
+                  borderRadius: 10,
+                  color: '#f0ede8',
+                  fontSize: 14,
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowRenameTag(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#1e1e1e',
+                  border: '1.5px solid #2a2a2a',
+                  borderRadius: 10,
+                  color: '#d0cdc8',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRenameTag(renameTagInput)}
+                disabled={!renameTagInput.trim() || renameTagInput.trim() === contextTag}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: renameTagInput.trim() && renameTagInput.trim() !== contextTag ? 'oklch(65% 0.18 145)' : '#1e1e1e',
+                  border: 'none',
+                  borderRadius: 10,
+                  color: renameTagInput.trim() && renameTagInput.trim() !== contextTag ? '#0a0a0a' : '#3a3a3a',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: renameTagInput.trim() && renameTagInput.trim() !== contextTag ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete tag confirmation */}
+      {showDeleteTagConfirm && contextTag && (
+        <>
+          <div
+            onClick={() => setShowDeleteTagConfirm(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 300,
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: '#141414',
+              border: '1.5px solid #2a2a2a',
+              borderRadius: 12,
+              padding: '20px',
+              zIndex: 301,
+              minWidth: 280,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+            }}
+          >
+            <div style={{ marginBottom: 16, textAlign: 'center' }}>
+              <p style={{ color: '#d0cdc8', fontSize: 14, margin: '0 0 4px 0' }}>
+                Delete tag "{contextTag}"?
+              </p>
+              <p style={{ color: '#6b6b6b', fontSize: 12, margin: 0 }}>
+                This will remove the tag from all images.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowDeleteTagConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#1e1e1e',
+                  border: '1.5px solid #2a2a2a',
+                  borderRadius: 10,
+                  color: '#d0cdc8',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTag}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#e05555',
+                  border: 'none',
+                  borderRadius: 10,
+                  color: '#ffffff',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
