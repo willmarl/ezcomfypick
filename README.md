@@ -9,8 +9,12 @@ A mobile-first web app for sorting ComfyUI image outputs with a Tinder-style swi
 ## Features
 
 - **Swipe-based sorting**: Tinder-style card interface for quick image categorization
-- **Collections**: Create custom collections to organize images by category, style, or project
+- **Multi-format support**: Sort images, GIFs, and videos (MP4, WebM, MOV)
+- **Collections**: Create custom collections to organize media by category, style, or project
 - **Emoji icons**: Assign custom emoji to collections for quick visual identification
+- **Tags**: Add and manage tags on individual images for fine-grained categorization
+- **Gallery view**: Browse, filter, and manage all sorted media with collection and tag filtering
+- **Tag & collection management**: Rename, delete, and organize tags and collections from the gallery
 - **Single-level undo**: Easily undo the last swipe action
 - **Haptic feedback**: Optional vibration feedback on mobile devices
 - **Dark OLED theme**: Easy on the eyes with a pure black background
@@ -20,21 +24,20 @@ A mobile-first web app for sorting ComfyUI image outputs with a Tinder-style swi
 ## Tech Stack
 
 ### Frontend
+
 - **React** (TypeScript) with Vite
 - **Sonner** for toast notifications
 - **ky** for HTTP requests
 - Custom styled components with CSS variables
 
 ### Backend
+
 - **FastAPI** (Python) for REST API
-- File-based metadata storage (JSON)
-- Stateless architecture - frontend manages image queue
+- **SQLModel** / SQLite for tag persistence
+- File-based collection metadata (JSON)
+- Supports image/video streaming with proper MIME types
 
 ## Getting Started
-
-### Prerequisites
-- Node.js + pnpm
-- Python 3.8+
 
 ### Installation
 
@@ -44,13 +47,15 @@ cd apps/web
 pnpm install
 
 cd apps/api
-pip install -r requirements.txt  # if requirements.txt exists
-# or manually: pip install fastapi uvicorn pydantic
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
 ### Running Locally
 
 **Terminal 1 - Start the backend:**
+
 ```bash
 cd apps/api
 export IMAGE_DIR=/path/to/comfyui/output  # Optional, defaults to ~/Pictures/test/
@@ -58,6 +63,7 @@ python main.py
 ```
 
 **Terminal 2 - Start the frontend:**
+
 ```bash
 cd apps/web
 pnpm run dev
@@ -65,80 +71,30 @@ pnpm run dev
 
 Visit `http://localhost:5173` in your browser.
 
-### Building for Production
-
-```bash
-cd apps/web
-pnpm run build
-# Copy dist/ to apps/static/
-
-cd apps/api
-python main.py  # or deploy with your preferred ASGI server
-```
-
-Access from another device at `http://<server-ip>:8000`
-
-## Project Structure
-
-```
-ezcomfypick/
-├── apps/
-│   ├── api/
-│   │   ├── main.py                 # FastAPI app with all endpoints
-│   │   ├── collection_manager.py   # Collection metadata handling
-│   │   └── database.py             # SQLModel setup (vestigial)
-│   ├── web/
-│   │   ├── src/
-│   │   │   ├── App.tsx             # Main app orchestration
-│   │   │   ├── types.ts            # TypeScript types
-│   │   │   ├── index.css           # OLED dark theme styles
-│   │   │   ├── api/
-│   │   │   │   └── client.ts       # HTTP client (ky-based)
-│   │   │   ├── hooks/
-│   │   │   │   ├── useImageQueue.ts    # Image queue state
-│   │   │   │   └── useCollections.ts   # Collections state
-│   │   │   └── components/
-│   │   │       ├── SwipeCard.tsx       # Individual draggable card
-│   │   │       ├── CardStack.tsx       # Stacked card display
-│   │   │       ├── ActionButtons.tsx   # Swipe action buttons
-│   │   │       ├── PillBar.tsx         # Collection selector
-│   │   │       ├── Header.tsx          # Top bar with title
-│   │   │       ├── EmptyState.tsx      # "All caught up" view
-│   │   │       └── sheets/
-│   │   │           ├── NewCollectionSheet.tsx
-│   │   │           └── SettingsSheet.tsx
-│   │   ├── vite.config.ts
-│   │   └── package.json
-│   └── static/              # Built frontend (production)
-└── README.md
-```
-
 ## Directory Structure (Runtime)
 
 ```
-~/Pictures/test/
-├── output/              # ComfyUI writes images here
+ComfyUI/
+├── output/              # Swipe queue (ComfyUI writes images here)
 ├── good-output/         # Collections (kept images)
-│   ├── .metadata.json   # Emoji mappings
+│   ├── .metadata.json   # Collection emoji & settings
+│   ├── default/         # Default collection
+│   │   ├── image1.png
+│   │   └── ...
 │   ├── Cartoony/
-│   ├── Realistic/
-│   └── ...
-└── trash-output/        # Deleted images
+│   │   └── ...
+│   └── Realistic/
+│       └── ...
+└── trash-output/        # Deleted images (recoverable)
 ```
 
-## API Endpoints
+## Database
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/images` | List all images in output/ |
-| GET | `/api/image-file/{path}` | Serve image file |
-| POST | `/api/swipe/keep` | Move image to collection |
-| POST | `/api/swipe/trash` | Move image to trash |
-| POST | `/api/swipe/undo` | Undo last action |
-| GET | `/api/collections` | List all collections |
-| POST | `/api/collections` | Create new collection |
-| GET | `/api/collections/{folder}` | Get collection details |
-| PUT | `/api/collections/{folder}` | Update collection metadata |
+The app uses SQLite to store:
+
+- Image tags (per-image metadata)
+- Tag-to-image associations
+- Supports tag renaming and deletion across all images
 
 ## Configuration
 
@@ -150,6 +106,7 @@ ezcomfypick/
 ### Frontend Settings
 
 Stored in localStorage:
+
 - `apiUrl` - Backend API URL (for remote deployments)
 - `haptic` - Enable vibration feedback on swipe
 
@@ -158,21 +115,20 @@ Stored in localStorage:
 - `→` or `Right Arrow` - Swipe right (keep)
 - `←` or `Left Arrow` - Swipe left (trash)
 
-## Known Limitations
+## Usage Tips
 
-- Single-level undo (only the last action can be undone)
-- Collections are flat (no nested folders)
-- Metadata is stored per-collection-directory in `.metadata.json`
+### Swipe Page
 
-## Future Enhancements
+- **Swipe right** to keep an image in your selected collection
+- **Swipe left** to move an image to trash
+- **Tag images** before swiping to auto-apply tags
+- **Long-press or right-click** collection pills to rename or delete
+- **Tap magnify button** on images to zoom in and inspect details
 
-- Multi-level undo/redo
-- Batch operations
-- Image preview/detail view
-- Collection descriptions
-- Search and filter
-- Dark/light theme toggle
+### Gallery Page
 
-## License
-
-MIT
+- **Filter by collection** using the collection pills
+- **Filter by tags** using the tag pills below collections
+- **Long-press or right-click** collection/tag pills to rename or delete them
+- **Tap an image** to view details, manage tags, or move to another collection
+- **Restore from trash** using the trash page
