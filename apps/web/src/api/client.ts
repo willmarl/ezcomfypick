@@ -147,4 +147,33 @@ export const apiClient = {
     const prefix = baseUrl ? `${baseUrl}/api` : '/api';
     return `${prefix}/gallery/image/${path}`;
   },
+
+  getTrashImages: async (offset: number = 0, limit: number = 30): Promise<{ images: string[]; has_more: boolean }> => {
+    const client = createClient();
+    const params = new URLSearchParams();
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    return client.get(`trash/images?${params.toString()}`).json();
+  },
+
+  getTrashImageUrl: (path: string): string => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const prefix = baseUrl ? `${baseUrl}/api` : '/api';
+    return `${prefix}/trash/image/${path}`;
+  },
+
+  trashReadd: async (path: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.post('trash/readd', { json: { path } }).json();
+  },
+
+  trashDelete: async (path: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.delete(`trash/image/${path}`).json();
+  },
+
+  trashEmpty: async (): Promise<{ ok: boolean; deleted: number }> => {
+    const client = createClient();
+    return client.post('trash/empty', { json: {} }).json();
+  },
 };

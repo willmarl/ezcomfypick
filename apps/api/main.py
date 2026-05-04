@@ -347,6 +347,19 @@ def validate_gallery_image_path(path: str) -> Path:
         raise HTTPException(status_code=400, detail="Invalid path")
 
 
+def validate_trash_path(path: str) -> Path:
+    """Validate and return a safe path within TRASH_DIR."""
+    try:
+        safe_path = (TRASH_DIR / path).resolve()
+        if not str(safe_path).startswith(str(TRASH_DIR.resolve())):
+            raise HTTPException(status_code=400, detail="Invalid path")
+        if not safe_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return safe_path
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+
 @app.get("/api/gallery/images/{path:path}/tags")
 def get_gallery_image_tags(path: str, session = Depends(get_session)):
     """Get all tags for a gallery image."""
@@ -641,6 +654,97 @@ def swipe_undo(req: UndoRequest):
         return {"ok": True}
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/trash/images")
+def get_trash_images(offset: int = 0, limit: int = 30):
+    """Get images from trash directory."""
+    try:
+        if not TRASH_DIR.exists():
+            return {"images": [], "has_more": False}
+
+        images = []
+        for file in sorted(TRASH_DIR.iterdir()):
+            if file.is_file() and file.suffix.lower() in MEDIA_EXTENSIONS:
+                images.append(file.name)
+
+        has_more = len(images) > offset + limit
+        paginated = images[offset : offset + limit]
+
+        return {"images": paginated, "has_more": has_more}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/trash/image/{path:path}")
+def get_trash_image_file(path: str):
+    """Serve image files from trash directory."""
+    try:
+        file_path = validate_trash_path(path)
+        return FileResponse(file_path, media_type=get_mime_type(file_path))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class TrashPathRequest(BaseModel):
+    path: str
+
+
+@app.post("/api/trash/readd")
+def trash_readd(req: TrashPathRequest):
+    """Move a trashed item back to the output queue."""
+    try:
+        source_path = validate_trash_path(req.path)
+
+        dest_path = OUTPUT_DIR / source_path.name
+        if dest_path.exists():
+            stem = dest_path.stem
+            suffix = dest_path.suffix
+            counter = 1
+            while dest_path.exists():
+                dest_path = OUTPUT_DIR / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+        shutil.move(str(source_path), str(dest_path))
+
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/trash/image/{path:path}")
+def trash_delete(path: str):
+    """Permanently delete a trashed item."""
+    try:
+        file_path = validate_trash_path(path)
+        file_path.unlink()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/trash/empty")
+def trash_empty():
+    """Delete all items from trash."""
+    try:
+        if not TRASH_DIR.exists():
+            return {"ok": True, "deleted": 0}
+
+        deleted = 0
+        for file in TRASH_DIR.iterdir():
+            if file.is_file():
+                file.unlink()
+                deleted += 1
+
+        return {"ok": True, "deleted": deleted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

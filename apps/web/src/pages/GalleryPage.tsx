@@ -14,6 +14,9 @@ import { Header } from '../components/Header';
 
 const isVideo = (path: string) => /\.(mp4|webm|mov)$/i.test(path);
 
+const getMediaUrl = (path: string, isTrash: boolean): string =>
+  isTrash ? apiClient.getTrashImageUrl(path) : apiClient.getGalleryImageUrl(path);
+
 export const GalleryPage: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -56,12 +59,17 @@ export const GalleryPage: React.FC = () => {
     async (newOffset: number = 0) => {
       setLoading(true);
       try {
-        const result = await apiClient.getGalleryImages(
-          selectedCollection || undefined,
-          selectedTags.length > 0 ? selectedTags : undefined,
-          newOffset,
-          30
-        );
+        let result;
+        if (selectedCollection === '__trash__') {
+          result = await apiClient.getTrashImages(newOffset, 30);
+        } else {
+          result = await apiClient.getGalleryImages(
+            selectedCollection || undefined,
+            selectedTags.length > 0 ? selectedTags : undefined,
+            newOffset,
+            30
+          );
+        }
         if (newOffset === 0) {
           setImages(result.images);
         } else {
@@ -187,46 +195,96 @@ export const GalleryPage: React.FC = () => {
             <span>{col.name}</span>
           </button>
         ))}
+        <button
+          onClick={() => setSelectedCollection('__trash__')}
+          style={{
+            padding: '8px 14px',
+            borderRadius: '100px',
+            border: selectedCollection === '__trash__' ? '1.5px solid oklch(65% 0.18 145 / 0.6)' : '1.5px solid #242424',
+            background: selectedCollection === '__trash__' ? 'oklch(65% 0.18 145 / 0.12)' : '#141414',
+            color: selectedCollection === '__trash__' ? 'oklch(72% 0.16 145)' : '#6b6b6b',
+            fontSize: '13px',
+            fontWeight: selectedCollection === '__trash__' ? 600 : 400,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            display: 'flex',
+            gap: '6px',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ fontSize: '14px' }}>🗑️</span>
+          <span>Trash</span>
+        </button>
       </div>
 
-      {/* Tag filter pills */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          flexWrap: 'wrap',
-          overflowX: 'auto',
-          padding: '12px 16px',
-          scrollbarWidth: 'none',
-          borderBottom: '1px solid #1a1a1a',
-          flexShrink: 0,
-        }}
-      >
-        {allTags.map((tag) => {
-          const isSelected = selectedTags.includes(tag);
-          return (
-            <button
-              key={tag}
-              onClick={() => toggleTag(tag)}
-              style={{
-                padding: '6px 12px',
-                background: isSelected ? 'oklch(65% 0.18 145 / 0.2)' : '#1a1a1a',
-                border: `1px solid ${isSelected ? 'oklch(65% 0.18 145 / 0.6)' : '#2a2a2a'}`,
-                borderRadius: '16px',
-                fontSize: '13px',
-                color: isSelected ? 'oklch(65% 0.18 145)' : '#b0b0b0',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              {tag}
-            </button>
-          );
-        })}
-      </div>
+      {/* Tag filter pills / Empty Trash button */}
+      {selectedCollection !== '__trash__' ? (
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            overflowX: 'auto',
+            padding: '12px 16px',
+            scrollbarWidth: 'none',
+            borderBottom: '1px solid #1a1a1a',
+            flexShrink: 0,
+          }}
+        >
+          {allTags.map((tag) => {
+            const isSelected = selectedTags.includes(tag);
+            return (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                style={{
+                  padding: '6px 12px',
+                  background: isSelected ? 'oklch(65% 0.18 145 / 0.2)' : '#1a1a1a',
+                  border: `1px solid ${isSelected ? 'oklch(65% 0.18 145 / 0.6)' : '#2a2a2a'}`,
+                  borderRadius: '16px',
+                  fontSize: '13px',
+                  color: isSelected ? 'oklch(65% 0.18 145)' : '#b0b0b0',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+      ) : images.length > 0 ? (
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={async () => {
+              try {
+                await apiClient.trashEmpty();
+                setImages([]);
+              } catch (err) {
+                console.error('Empty trash failed:', err);
+                alert('Failed to empty trash');
+              }
+            }}
+            style={{
+              padding: '6px 14px',
+              background: 'none',
+              border: 'none',
+              color: '#e05555',
+              fontSize: '13px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontWeight: 500,
+            }}
+          >
+            Empty Trash
+          </button>
+        </div>
+      ) : null}
 
       {/* Image grid */}
       <div
@@ -260,7 +318,7 @@ export const GalleryPage: React.FC = () => {
             >
               {isVideo(imagePath) ? (
                 <video
-                  src={apiClient.getGalleryImageUrl(imagePath)}
+                  src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
                   preload="metadata"
                   muted
                   style={{
@@ -272,7 +330,7 @@ export const GalleryPage: React.FC = () => {
                 />
               ) : (
                 <img
-                  src={apiClient.getGalleryImageUrl(imagePath)}
+                  src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
                   alt={imagePath}
                   style={{
                     width: '100%',
@@ -359,7 +417,7 @@ export const GalleryPage: React.FC = () => {
                   <SwiperSlide key={imagePath} virtualIndex={idx}>
                     {isVideo(imagePath) ? (
                       <video
-                        src={apiClient.getGalleryImageUrl(imagePath)}
+                        src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
                         controls
                         autoPlay
                         loop
@@ -369,7 +427,7 @@ export const GalleryPage: React.FC = () => {
                       />
                     ) : (
                       <img
-                        src={apiClient.getGalleryImageUrl(imagePath)}
+                        src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
                         alt={imagePath}
                         draggable={false}
                       />
@@ -425,7 +483,7 @@ export const GalleryPage: React.FC = () => {
                 return isVideo(imagePath) ? (
                   <video
                     key={`thumb-${idx}-${imagePath}`}
-                    src={apiClient.getGalleryImageUrl(imagePath)}
+                    src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
                     preload="metadata"
                     muted
                     onClick={() => swiperRef.current?.slideTo(idx)}
@@ -434,7 +492,7 @@ export const GalleryPage: React.FC = () => {
                 ) : (
                   <img
                     key={`thumb-${idx}-${imagePath}`}
-                    src={apiClient.getGalleryImageUrl(imagePath)}
+                    src={getMediaUrl(imagePath, selectedCollection === '__trash__')}
                     alt={imagePath}
                     onClick={() => swiperRef.current?.slideTo(idx)}
                     style={thumbStyle}
@@ -516,6 +574,7 @@ export const GalleryPage: React.FC = () => {
         imagePath={actionSheetImagePath}
         collections={collections.collections}
         allTags={allTags}
+        isTrash={selectedCollection === '__trash__'}
         onActionComplete={(action, newPath) => {
           if (action === 'move' && newPath) {
             setImages((prev) => prev.map((p, i) => (i === activeIndex ? newPath : p)));

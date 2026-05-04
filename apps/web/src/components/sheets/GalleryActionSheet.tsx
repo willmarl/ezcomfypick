@@ -9,7 +9,8 @@ interface GalleryActionSheetProps {
   imagePath: string | null;
   collections: Collection[];
   allTags: string[];
-  onActionComplete: (action: 'trash' | 'readd' | 'move', newPath?: string) => void;
+  isTrash?: boolean;
+  onActionComplete: (action: 'trash' | 'readd' | 'move' | 'delete', newPath?: string) => void;
 }
 
 type View = 'menu' | 'move' | 'tags';
@@ -20,6 +21,7 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
   imagePath,
   collections,
   allTags,
+  isTrash = false,
   onActionComplete,
 }) => {
   const [view, setView] = useState<View>('menu');
@@ -53,10 +55,41 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
   const handleDownload = () => {
     if (!imagePath) return;
     const a = document.createElement('a');
-    a.href = apiClient.getGalleryImageUrl(imagePath);
+    const url = isTrash ? apiClient.getTrashImageUrl(imagePath) : apiClient.getGalleryImageUrl(imagePath);
+    a.href = url;
     a.download = imagePath.split('/').pop() ?? 'image';
     a.click();
     onClose();
+  };
+
+  const handleRestoreFromTrash = async () => {
+    if (!imagePath || busy) return;
+    setBusy(true);
+    try {
+      await apiClient.trashReadd(imagePath);
+      onActionComplete('readd');
+      onClose();
+    } catch (err) {
+      console.error('Restore failed:', err);
+      alert(`Restore failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteForever = async () => {
+    if (!imagePath || busy) return;
+    setBusy(true);
+    try {
+      await apiClient.trashDelete(imagePath);
+      onActionComplete('delete');
+      onClose();
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert(`Delete failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleMove = async (toCollection: string) => {
@@ -221,10 +254,19 @@ export const GalleryActionSheet: React.FC<GalleryActionSheetProps> = ({
         {view === 'menu' && (
           <div>
             {actionRow(<Download size={18} />, 'Download', handleDownload)}
-            {actionRow(<ArrowRight size={18} />, 'Move to collection', () => setView('move'))}
-            {actionRow(<Tag size={18} />, 'Change tags', () => setView('tags'))}
-            {actionRow(<Trash2 size={18} />, 'Trash', handleTrash, true)}
-            {actionRow(<RotateCcw size={18} />, 'Re-add to queue', handleReadd)}
+            {isTrash ? (
+              <>
+                {actionRow(<RotateCcw size={18} />, 'Restore to queue', handleRestoreFromTrash)}
+                {actionRow(<Trash2 size={18} />, 'Delete forever', handleDeleteForever, true)}
+              </>
+            ) : (
+              <>
+                {actionRow(<ArrowRight size={18} />, 'Move to collection', () => setView('move'))}
+                {actionRow(<Tag size={18} />, 'Change tags', () => setView('tags'))}
+                {actionRow(<Trash2 size={18} />, 'Trash', handleTrash, true)}
+                {actionRow(<RotateCcw size={18} />, 'Re-add to queue', handleReadd)}
+              </>
+            )}
           </div>
         )}
 
