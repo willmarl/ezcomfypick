@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useState, useCallback } from "react";
+import { forwardRef, useRef, useState, useCallback, useImperativeHandle } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { apiClient } from "../api/client";
 
@@ -21,8 +21,7 @@ const DX = 0.15; // animation duration in seconds
 const isVideo = (path: string) => /\.(mp4|webm|mov)$/i.test(path);
 
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
-  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }) => {
-    const cardRef = useRef<HTMLDivElement>(null);
+  ({ imagePath, isTop, stackIndex, onSwipe, isMagnified }, ref) => {
     const startRef = useRef<{ x: number; y: number } | null>(null);
     const dragRef = useRef({ x: 0, y: 0, active: false });
     const [drag, setDrag] = useState({ x: 0, y: 0 });
@@ -48,6 +47,10 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
       },
       [imagePath, onSwipe],
     );
+
+    useImperativeHandle(ref, () => ({
+      flyOut,
+    }));
 
     const onPointerDown = useCallback(
       (e: React.PointerEvent) => {
@@ -104,7 +107,6 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
 
     return (
       <div
-        ref={cardRef}
         onPointerDown={isTop ? onPointerDown : undefined}
         style={{
           position: "absolute",
