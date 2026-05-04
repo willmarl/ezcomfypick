@@ -69,11 +69,8 @@ export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }
 
       if (dir === 'right') {
         await imageQueue.swipeKeep(imagePath, selectedCollection);
-        const col = collections.collections.find((c) => c.folder === selectedCollection);
-        toast.success(`Kept → ${col?.name || selectedCollection}`);
       } else {
         await imageQueue.swipeTrash(imagePath);
-        toast.success('Moved to trash');
       }
     } catch (err) {
       console.error('Swipe failed:', err);
