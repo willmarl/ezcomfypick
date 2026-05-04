@@ -33,6 +33,16 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
       y: e.clientY,
     });
 
+    const flyOut = useCallback((dir: 'left' | 'right') => {
+      setReleasing(true);
+      const targetX = dir === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
+      setDrag({ x: targetX, y: dragRef.current.y || 0 });
+      setTimeout(() => {
+        setGone(true);
+        onSwipe(dir, imagePath);
+      }, 350);
+    }, [imagePath, onSwipe]);
+
     const onPointerDown = useCallback((e: React.PointerEvent) => {
       if (!isTop || isMagnified) return;
       e.preventDefault();
@@ -70,17 +80,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
 
       document.addEventListener('pointermove', handleMove);
       document.addEventListener('pointerup', handleUp);
-    }, [isTop, isMagnified]);
-
-    const flyOut = useCallback((dir: 'left' | 'right') => {
-      setReleasing(true);
-      const targetX = dir === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
-      setDrag({ x: targetX, y: dragRef.current.y || 0 });
-      setTimeout(() => {
-        setGone(true);
-        onSwipe(dir, imagePath);
-      }, 350);
-    }, [imagePath, onSwipe]);
+    }, [isTop, isMagnified, flyOut]);
 
     if (gone) return null;
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { useImageQueue } from '../hooks/useImageQueue';
 import { useCollections } from '../hooks/useCollections';
@@ -28,24 +28,29 @@ const saveSettings = (settings: AppSettings) => {
 };
 
 export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }) => {
-  const [selectedCollection, setSelectedCollection] = useState<string>('');
+  const imageQueue = useImageQueue();
+  const collections = useCollections();
+
+  // Initialize selectedCollection with first collection folder once collections load
+  const [selectedCollection, setSelectedCollection] = useState<string>(() => {
+    return collections.collections.length > 0 ? collections.collections[0].folder : '';
+  });
+
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isMagnified, setIsMagnified] = useState(false);
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const cardStackRef = useRef<any>(null);
 
-  const imageQueue = useImageQueue();
-  const collections = useCollections();
-
-  // Auto-select first collection
+  // Update selectedCollection when collections change (if not already manually set)
   useEffect(() => {
     if (collections.collections.length > 0 && !selectedCollection) {
+      console.log('Setting default collection:', collections.collections[0].folder);
       setSelectedCollection(collections.collections[0].folder);
     }
-  }, [collections.collections, selectedCollection]);
+  }, [collections.collections.length]);
 
-  const handleSwipe = async (dir: 'left' | 'right', imagePath: string) => {
+  const handleSwipe = useCallback(async (dir: 'left' | 'right', imagePath: string) => {
     try {
       setIsMagnified(false);
       if (settings.haptic && navigator.vibrate) {
@@ -76,7 +81,7 @@ export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }
       console.error('Swipe failed:', err);
       toast.error('Failed to process swipe');
     }
-  };
+  }, [selectedCollection, selectedTags, imageQueue, settings]);
 
   const handleUndo = async () => {
     try {
@@ -138,8 +143,10 @@ export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {imageQueue.images.length === 0 ? (
           <EmptyState onReload={imageQueue.reload} />
-        ) : (
+        ) : selectedCollection ? (
           <CardStack ref={cardStackRef} images={imageQueue.images} onSwipe={handleSwipe} isMagnified={isMagnified} />
+        ) : (
+          <EmptyState onReload={imageQueue.reload} />
         )}
       </div>
 
