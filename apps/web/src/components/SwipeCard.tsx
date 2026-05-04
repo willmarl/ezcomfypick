@@ -114,7 +114,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(
             borderRadius: '20px',
             overflow: 'hidden',
             boxShadow: isTop
-              ? '0 24px 80px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.4)'
+              ? '0 4px 12px rgba(0,0,0,0.4)'
               : '0 8px 24px rgba(0,0,0,0.4)',
             background: '#141414',
             position: 'relative',

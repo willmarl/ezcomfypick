@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import * as Popover from '@radix-ui/react-popover';
-import { apiClient } from '../api/client';
+import { useState, useEffect } from "react";
+import * as Popover from "@radix-ui/react-popover";
+import { apiClient } from "../api/client";
 
 interface TagBarProps {
   imagePath: string | null;
@@ -9,11 +9,16 @@ interface TagBarProps {
   onAddTag: (tag: string) => void;
 }
 
-export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggleTag, onAddTag }) => {
+export const TagBar: React.FC<TagBarProps> = ({
+  imagePath,
+  selectedTags,
+  onToggleTag,
+  onAddTag,
+}) => {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [imageTags, setImageTags] = useState<string[]>([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [newTagInput, setNewTagInput] = useState('');
+  const [newTagInput, setNewTagInput] = useState("");
 
   useEffect(() => {
     const fetchAllTags = async () => {
@@ -21,7 +26,7 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
         const tags = await apiClient.getAllTags();
         setAllTags(tags);
       } catch (err) {
-        console.error('Failed to fetch all tags:', err);
+        console.error("Failed to fetch all tags:", err);
       }
     };
 
@@ -39,7 +44,7 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
         const tags = await apiClient.getTags(imagePath);
         setImageTags(tags);
       } catch (err) {
-        console.error('Failed to fetch image tags:', err);
+        console.error("Failed to fetch image tags:", err);
       }
     };
 
@@ -51,7 +56,7 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
     if (!trimmed) return;
 
     onAddTag(trimmed);
-    setNewTagInput('');
+    setNewTagInput("");
     setPopoverOpen(false);
 
     // Add to all tags if not already there
@@ -63,36 +68,43 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
   if (!imagePath) return null;
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-      padding: '12px 16px',
-      background: '#0a0a0a',
-      borderTop: '1px solid #1a1a1a',
-      flexShrink: 0,
-      position: 'relative',
-      zIndex: 15,
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        padding: "12px 16px",
+        background: "#0a0a0a",
+        borderTop: "1px solid #1a1a1a",
+        flexShrink: 0,
+      }}
+    >
       {/* Image tags */}
       {imageTags.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <div style={{ fontSize: '11px', color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#6b6b6b",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
             Image Tags
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {imageTags.map((tag) => (
               <div
                 key={tag}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '6px 12px',
-                  background: '#1a1a1a',
-                  border: '1px solid #2a2a2a',
-                  borderRadius: '16px',
-                  fontSize: '13px',
-                  color: '#b0b0b0',
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "6px 12px",
+                  background: "#1a1a1a",
+                  border: "1px solid #2a2a2a",
+                  borderRadius: "16px",
+                  fontSize: "13px",
+                  color: "#b0b0b0",
                 }}
               >
                 {tag}
@@ -103,24 +115,43 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
       )}
 
       {/* All tags + add button */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '11px', color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#6b6b6b",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
             Tags
           </div>
           <Popover.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
             <Popover.Trigger asChild>
               <button
                 style={{
-                  padding: '4px 8px',
-                  background: 'oklch(65% 0.18 145)',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: '#0a0a0a',
-                  fontSize: '12px',
+                  padding: "4px 8px",
+                  background: "oklch(65% 0.18 145)",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: "#0a0a0a",
+                  fontSize: "12px",
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  cursor: "pointer",
+                  transition: "all 0.2s",
                 }}
               >
                 + Add
@@ -130,16 +161,29 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
               side="top"
               align="end"
               style={{
-                background: '#141414',
-                border: '1px solid #2a2a2a',
-                borderRadius: '12px',
-                padding: '16px',
-                zIndex: 50,
-                boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
+                background: "#141414",
+                border: "1px solid #2a2a2a",
+                borderRadius: "12px",
+                padding: "16px",
+                zIndex: 500,
+                boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '200px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#f0ede8' }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  width: "200px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#f0ede8",
+                  }}
+                >
                   Add Custom Tag
                 </div>
                 <input
@@ -148,33 +192,35 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddCustomTag();
+                    if (e.key === "Enter") handleAddCustomTag();
                   }}
                   placeholder="Tag name..."
                   style={{
-                    padding: '10px 12px',
-                    background: '#1a1a1a',
-                    border: '1px solid #2a2a2a',
-                    borderRadius: '8px',
-                    color: '#f0ede8',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    outline: 'none',
+                    padding: "10px 12px",
+                    background: "#1a1a1a",
+                    border: "1px solid #2a2a2a",
+                    borderRadius: "8px",
+                    color: "#f0ede8",
+                    fontSize: "13px",
+                    fontFamily: "inherit",
+                    outline: "none",
                   }}
                 />
                 <button
                   onClick={handleAddCustomTag}
                   disabled={!newTagInput.trim()}
                   style={{
-                    padding: '10px',
-                    background: newTagInput.trim() ? 'oklch(65% 0.18 145)' : '#1a1a1a',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: newTagInput.trim() ? '#0a0a0a' : '#6b6b6b',
-                    fontSize: '13px',
+                    padding: "10px",
+                    background: newTagInput.trim()
+                      ? "oklch(65% 0.18 145)"
+                      : "#1a1a1a",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: newTagInput.trim() ? "#0a0a0a" : "#6b6b6b",
+                    fontSize: "13px",
                     fontWeight: 600,
-                    cursor: newTagInput.trim() ? 'pointer' : 'default',
-                    transition: 'all 0.2s',
+                    cursor: newTagInput.trim() ? "pointer" : "default",
+                    transition: "all 0.2s",
                   }}
                 >
                   Add Tag
@@ -182,15 +228,15 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
               </div>
               <Popover.Arrow
                 style={{
-                  fill: '#141414',
-                  stroke: '#2a2a2a',
+                  fill: "#141414",
+                  stroke: "#2a2a2a",
                   strokeWidth: 1,
                 }}
               />
             </Popover.Content>
           </Popover.Root>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           {allTags.map((tag) => {
             const isSelected = selectedTags.has(tag);
             return (
@@ -198,15 +244,17 @@ export const TagBar: React.FC<TagBarProps> = ({ imagePath, selectedTags, onToggl
                 key={tag}
                 onClick={() => onToggleTag(tag)}
                 style={{
-                  padding: '6px 12px',
-                  background: isSelected ? 'oklch(65% 0.18 145 / 0.2)' : '#1a1a1a',
-                  border: `1px solid ${isSelected ? 'oklch(65% 0.18 145 / 0.6)' : '#2a2a2a'}`,
-                  borderRadius: '16px',
-                  fontSize: '13px',
-                  color: isSelected ? 'oklch(65% 0.18 145)' : '#b0b0b0',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
+                  padding: "6px 12px",
+                  background: isSelected
+                    ? "oklch(65% 0.18 145 / 0.2)"
+                    : "#1a1a1a",
+                  border: `1px solid ${isSelected ? "oklch(65% 0.18 145 / 0.6)" : "#2a2a2a"}`,
+                  borderRadius: "16px",
+                  fontSize: "13px",
+                  color: isSelected ? "oklch(65% 0.18 145)" : "#b0b0b0",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontFamily: "inherit",
                 }}
               >
                 {tag}
