@@ -50,9 +50,18 @@ def ensure_dirs():
     COLLECTIONS_DIR.mkdir(parents=True, exist_ok=True)
     TRASH_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Create default collection if it doesn't exist
+    default_collection = COLLECTIONS_DIR / "default"
+    default_collection.mkdir(parents=True, exist_ok=True)
+
     # Ensure metadata file exists
     from collection_manager import read_all_metadata, write_all_metadata
     metadata = read_all_metadata(COLLECTIONS_DIR)
+
+    # Ensure "default" collection is in metadata (metadata format is {folder: emoji})
+    if "default" not in metadata:
+        metadata["default"] = "⭐"
+
     write_all_metadata(COLLECTIONS_DIR, metadata)
 
     # Initialize database
