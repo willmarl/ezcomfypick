@@ -49,7 +49,7 @@ export const SwipePage: React.FC<SwipePageProps> = ({ settings, onSettingsSave }
     try {
       setIsMagnified(false);
       if (settings.haptic && navigator.vibrate) {
-        navigator.vibrate(dir === 'right' ? [20] : [10, 30, 10]);
+        navigator.vibrate([20]);
       }
 
       // Append selected tags to image before swiping
