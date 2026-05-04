@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 import shutil
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 
 from collection_manager import (
     get_all_collections,
@@ -251,13 +251,12 @@ def remove_image_tag(path: str, tag: str, session = Depends(get_session)):
         if not tag:
             raise HTTPException(status_code=400, detail="Tag cannot be empty")
 
-        stmt = select(ImageTag).where(
-            (ImageTag.image_path == path) & (ImageTag.tag == tag)
+        session.exec(
+            delete(ImageTag).where(
+                (ImageTag.image_path == path) & (ImageTag.tag == tag)
+            )
         )
-        image_tag = session.exec(stmt).first()
-        if image_tag:
-            session.delete(image_tag)
-            session.commit()
+        session.commit()
         return {"ok": True}
     except HTTPException:
         raise
@@ -322,6 +321,180 @@ def get_gallery_images(
         paginated = images[offset : offset + limit]
 
         return {"images": paginated, "has_more": has_more}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def validate_gallery_image_path(path: str) -> Path:
+    """Validate and return a safe path within COLLECTIONS_DIR."""
+    try:
+        safe_path = (COLLECTIONS_DIR / path).resolve()
+        if not str(safe_path).startswith(str(COLLECTIONS_DIR.resolve())):
+            raise HTTPException(status_code=400, detail="Invalid path")
+        if not safe_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return safe_path
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+
+@app.get("/api/gallery/images/{path:path}/tags")
+def get_gallery_image_tags(path: str, session = Depends(get_session)):
+    """Get all tags for a gallery image."""
+    try:
+        validate_gallery_image_path(path)
+        stmt = select(ImageTag.tag).where(ImageTag.image_path == path)
+        tags = [row[0] for row in session.exec(stmt).all()]
+        return {"tags": tags}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/gallery/images/{path:path}/tags")
+def add_gallery_image_tag(path: str, req: AddTagRequest, session = Depends(get_session)):
+    """Add a tag to a gallery image."""
+    try:
+        validate_gallery_image_path(path)
+        tag = req.tag.strip()
+        if not tag:
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        existing = session.exec(
+            select(ImageTag).where(
+                (ImageTag.image_path == path) & (ImageTag.tag == tag)
+            )
+        ).first()
+        if existing:
+            return {"ok": True}
+
+        new_tag = ImageTag(image_path=path, tag=tag)
+        session.add(new_tag)
+        session.commit()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/gallery/images/{path:path}/tags/{tag}")
+def remove_gallery_image_tag(path: str, tag: str, session = Depends(get_session)):
+    """Remove a tag from a gallery image."""
+    try:
+        validate_gallery_image_path(path)
+        tag = tag.strip()
+        if not tag:
+            raise HTTPException(status_code=400, detail="Tag cannot be empty")
+
+        session.exec(
+            delete(ImageTag).where(
+                (ImageTag.image_path == path) & (ImageTag.tag == tag)
+            )
+        )
+        session.commit()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class GalleryMoveRequest(BaseModel):
+    from_path: str
+    to_collection: str
+
+
+class GalleryPathRequest(BaseModel):
+    path: str
+
+
+@app.post("/api/gallery/move")
+def gallery_move(req: GalleryMoveRequest, session = Depends(get_session)):
+    """Move a gallery image to a different collection."""
+    try:
+        source_path = validate_gallery_image_path(req.from_path)
+
+        dest_dir = COLLECTIONS_DIR / req.to_collection
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        dest_path = dest_dir / source_path.name
+        if dest_path.exists():
+            stem = dest_path.stem
+            suffix = dest_path.suffix
+            counter = 1
+            while dest_path.exists():
+                dest_path = dest_dir / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+        shutil.move(str(source_path), str(dest_path))
+
+        new_image_path = f"{req.to_collection}/{dest_path.name}"
+        session.exec(
+            update(ImageTag)
+            .where(ImageTag.image_path == req.from_path)
+            .values(image_path=new_image_path)
+        )
+        session.commit()
+
+        return {"ok": True, "new_path": new_image_path}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/gallery/trash")
+def gallery_trash(req: GalleryPathRequest, session = Depends(get_session)):
+    """Move a gallery image to trash."""
+    try:
+        source_path = validate_gallery_image_path(req.path)
+
+        dest_path = TRASH_DIR / source_path.name
+        if dest_path.exists():
+            stem = dest_path.stem
+            suffix = dest_path.suffix
+            counter = 1
+            while dest_path.exists():
+                dest_path = TRASH_DIR / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+        shutil.move(str(source_path), str(dest_path))
+
+        session.exec(delete(ImageTag).where(ImageTag.image_path == req.path))
+        session.commit()
+
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/gallery/readd")
+def gallery_readd(req: GalleryPathRequest, session = Depends(get_session)):
+    """Move a gallery image back to the output queue."""
+    try:
+        source_path = validate_gallery_image_path(req.path)
+
+        dest_path = OUTPUT_DIR / source_path.name
+        if dest_path.exists():
+            stem = dest_path.stem
+            suffix = dest_path.suffix
+            counter = 1
+            while dest_path.exists():
+                dest_path = OUTPUT_DIR / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+        shutil.move(str(source_path), str(dest_path))
+
+        session.exec(delete(ImageTag).where(ImageTag.image_path == req.path))
+        session.commit()
+
+        return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

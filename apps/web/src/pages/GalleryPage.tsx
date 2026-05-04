@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { X, MoreHorizontal } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
+import { GalleryActionSheet } from '../components/sheets/GalleryActionSheet';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import type { Swiper as SwiperType } from 'swiper';
 import { Virtual } from 'swiper/modules';
@@ -21,6 +22,8 @@ export const GalleryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showActions, setShowActions] = useState(false);
+  const [actionSheetImagePath, setActionSheetImagePath] = useState<string | null>(null);
   const downSwipeRef = useRef({ y: 0, x: 0 });
   const swiperRef = useRef<SwiperType | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -396,6 +399,30 @@ export const GalleryPage: React.FC = () => {
               })}
             </div>
 
+            {/* Actions button */}
+            <button
+              onClick={() => {
+                setActionSheetImagePath(images[activeIndex] ?? null);
+                setShowActions(true);
+              }}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '16px',
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                lineHeight: 1,
+                zIndex: 100,
+              }}
+            >
+              <MoreHorizontal size={24} />
+            </button>
+
             {/* Close button */}
             <Dialog.Close asChild>
               <button
@@ -438,6 +465,22 @@ export const GalleryPage: React.FC = () => {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      <GalleryActionSheet
+        visible={showActions}
+        onClose={() => setShowActions(false)}
+        imagePath={actionSheetImagePath}
+        collections={collections.collections}
+        allTags={allTags}
+        onActionComplete={(action, newPath) => {
+          if (action === 'move' && newPath) {
+            setImages((prev) => prev.map((p, i) => (i === activeIndex ? newPath : p)));
+          } else {
+            setImages((prev) => prev.filter((_, i) => i !== activeIndex));
+            setPreviewIndex(null);
+          }
+        }}
+      />
     </div>
   );
 };

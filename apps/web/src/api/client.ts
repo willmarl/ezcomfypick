@@ -107,6 +107,41 @@ export const apiClient = {
     return client.get(`gallery/images?${params.toString()}`).json();
   },
 
+  getGalleryImageTags: async (imagePath: string): Promise<string[]> => {
+    const client = createClient();
+    const res = await client.get(`gallery/images/${imagePath}/tags`).json<{ tags: string[] }>();
+    return res.tags;
+  },
+
+  addGalleryImageTag: async (imagePath: string, tag: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.post(`gallery/images/${imagePath}/tags`, {
+      json: { tag },
+    }).json();
+  },
+
+  removeGalleryImageTag: async (imagePath: string, tag: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.delete(`gallery/images/${imagePath}/tags/${tag}`).json();
+  },
+
+  galleryMove: async (fromPath: string, toCollection: string): Promise<{ ok: boolean; new_path: string }> => {
+    const client = createClient();
+    return client.post('gallery/move', {
+      json: { from_path: fromPath, to_collection: toCollection },
+    }).json();
+  },
+
+  galleryTrash: async (path: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.post('gallery/trash', { json: { path } }).json();
+  },
+
+  galleryReadd: async (path: string): Promise<{ ok: boolean }> => {
+    const client = createClient();
+    return client.post('gallery/readd', { json: { path } }).json();
+  },
+
   getGalleryImageUrl: (path: string): string => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const prefix = baseUrl ? `${baseUrl}/api` : '/api';
