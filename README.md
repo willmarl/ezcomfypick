@@ -26,7 +26,7 @@ also have docker installed
 docker run -d -p 1234:8000 -v /home/myhomelab/ComfyUI:/images willmarl/ezcomfypick:latest
 ```
 
-Open a browser on another device and go to http://<your-pc-ip>:1234/ (replace <your-pc-ip> with your computer's local IP address, e.g., 192.168.1.100)
+Open a browser on another device and go to `http://<your-pc-ip>:1234/` (replace <your-pc-ip> with your computer's local IP address, e.g., `http://192.168.0.230:1234/`)
 
 ## How it works
 
